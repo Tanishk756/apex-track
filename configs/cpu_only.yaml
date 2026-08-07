@@ -1,0 +1,43 @@
+# CPU-Only Profile
+# Target: Any x86_64 or ARM system without CUDA.
+# Realistic expectations: 5–15 FPS at 640x640 ONNX FP32.
+
+hardware:
+  force_cpu: true
+  cuda_streams: 0
+  pinned_memory: false
+
+detector:
+  plugin: rtdetr               # ONNX CPU EP
+  fp_precision: fp32
+  input_size: [416, 416]       # Smaller input = faster CPU inference
+  confidence_threshold: 0.50
+  max_detections: 100
+
+tracker:
+  plugin: bytetrack
+  reid_enabled: false
+  min_hits: 2
+  max_misses: 20
+
+scheduler:
+  detect_every: 5
+  max_detect_every: 10
+  gpu_load_high_pct: 100.0      # No GPU — never trigger
+  optical_flow_trigger: false   # Saves CPU on resource-constrained systems
+
+camera_manager:
+  cameras:
+    - plugin: usb_camera
+      source: "0"
+      width: 640
+      height: 480
+      fps: 15.0
+      hw_decode: false
+
+recording:
+  codec: h264
+  fps: 15.0
+
+diagnostics:
+  health_interval_s: 2.0

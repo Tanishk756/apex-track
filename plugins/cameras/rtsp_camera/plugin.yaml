@@ -1,0 +1,9 @@
+name: rtsp_camera
+version: "1.0.0"
+type: camera
+author: "APEX-Track"
+license: Apache-2.0
+description: "Low-latency RTSP/IP Network Stream Plugin"
+entry_point: "plugins.cameras.rtsp_camera.plugin.RTSPCameraPlugin"
+requires_capabilities: []
+tags: [camera, rtsp, gstreamer, ip]

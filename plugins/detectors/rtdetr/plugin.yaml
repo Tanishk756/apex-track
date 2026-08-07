@@ -1,0 +1,9 @@
+name: rtdetr
+version: "1.0.0"
+type: detector
+author: "APEX-Track"
+license: Apache-2.0
+description: "RT-DETR Real-Time Detection Transformer Plugin"
+entry_point: "plugins.detectors.rtdetr.plugin.RTDETRPlugin"
+requires_capabilities: []
+tags: [detector, rtdetr, transformer, apache-2.0]

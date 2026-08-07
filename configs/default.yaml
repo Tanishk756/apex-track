@@ -1,0 +1,102 @@
+# APEX-Track — Default Configuration
+# All values here are the baseline; hardware profiles override specific keys.
+# User config files and APEX_* env vars override on top of that.
+
+version: "1.0"
+
+logging:
+  level: INFO
+  format: console
+  file: null
+
+hardware:
+  force_cpu: false
+  cuda_device: 0
+  tensorrt_workspace_mb: 1024
+  accept_agpl_plugins: false
+  pinned_memory: true
+  cuda_streams: 2
+
+detector:
+  plugin: rtdetr               # Apache-2.0 primary detector
+  model_name: rtdetr_r50vd_coco
+  confidence_threshold: 0.45
+  nms_iou_threshold: 0.45
+  max_detections: 300
+  input_size: [640, 640]
+  fp_precision: fp16
+  class_filter: []
+
+tracker:
+  plugin: bytetrack
+  min_hits: 3
+  max_misses: 30
+  iou_threshold: 0.3
+  track_high_thresh: 0.6
+  track_low_thresh: 0.1
+  match_thresh: 0.8
+  reid_enabled: false
+
+scheduler:
+  detect_every: 3
+  min_detect_every: 1
+  max_detect_every: 10
+  gpu_load_high_pct: 80.0
+  confidence_low_thresh: 0.4
+  optical_flow_trigger: true
+
+telemetry:
+  enabled: true
+  plugin: mavlink_udp
+  connection: "udp:0.0.0.0:14550"
+  timeout_s: 5.0
+  reconnect_interval_s: 3.0
+  source_system: 255
+  source_component: 0
+
+camera_manager:
+  cameras:
+    - plugin: usb_camera
+      source: "0"
+      width: 1280
+      height: 720
+      fps: 30.0
+      buffer_size: 1
+      hw_decode: true
+      reconnect_on_failure: true
+  sync_tolerance_ms: 50.0
+
+recording:
+  enabled: false
+  output_dir: recordings
+  format: mp4
+  codec: h264
+  fps: 30.0
+  record_raw: true
+  record_hud: true
+  record_ros_bag: false
+  record_telemetry: true
+  telemetry_format: both
+
+mission:
+  profile: road_vehicles
+  auto_lock: true
+  lock_mode: AUTO
+  reacquisition_enabled: true
+  coast_max_frames: 30
+
+api:
+  rest_enabled: true
+  rest_host: "0.0.0.0"
+  rest_port: 8000
+  ws_enabled: true
+  ws_port: 8001
+  ws_publish_rate_hz: 10.0
+  cors_origins: ["*"]
+
+diagnostics:
+  health_interval_s: 1.0
+  metrics_interval_s: 0.5
+  gpu_warn_pct: 85.0
+  cpu_warn_pct: 90.0
+  ram_warn_pct: 85.0

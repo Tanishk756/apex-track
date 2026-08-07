@@ -1,0 +1,237 @@
+/* ==========================================================================
+   APEX-Track C4ISR Tactical Glassmorphism Design System
+   ========================================================================== */
+
+:root {
+  --bg-dark: #070a12;
+  --panel-bg: rgba(15, 23, 42, 0.75);
+  --panel-border: rgba(56, 189, 248, 0.2);
+  --panel-glow: rgba(56, 189, 248, 0.1);
+  --primary-cyan: #38bdf8;
+  --accent-emerald: #10b981;
+  --accent-warning: #f59e0b;
+  --accent-danger: #ef4444;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --font-sans: 'Inter', -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-dark);
+  background-image: 
+    radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.08) 0%, transparent 70%),
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 100% 100%, 40px 40px, 40px 40px;
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header Navbar */
+header {
+  height: 56px;
+  background: rgba(11, 15, 25, 0.9);
+  border-bottom: 1px solid var(--panel-border);
+  backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  z-index: 10;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: 1.5px;
+  color: var(--primary-cyan);
+}
+
+.brand-badge {
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid var(--primary-cyan);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+}
+
+.sys-metrics {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
+.metric-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dot-active {
+  width: 8px;
+  height: 8px;
+  background-color: var(--accent-emerald);
+  border-radius: 50%;
+  box-shadow: 0 0 10px var(--accent-emerald);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.4; }
+  50% { opacity: 1; }
+  100% { opacity: 0.4; }
+}
+
+/* Main Dashboard Grid */
+.dashboard-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  grid-template-rows: 1.4fr 1fr;
+  gap: 16px;
+  padding: 16px;
+  height: calc(100vh - 56px);
+}
+
+/* Glassmorphism Panel Wrapper */
+.glass-panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.panel-header {
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--panel-border);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--primary-cyan);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.panel-content {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Video Feed Canvas */
+#hudCanvas {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Radar Display */
+.radar-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+#radarCanvas {
+  max-width: 90%;
+  max-height: 90%;
+}
+
+/* Target Table */
+.table-wrapper {
+  overflow-y: auto;
+  height: 100%;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  font-family: var(--font-mono);
+}
+
+th {
+  background: rgba(15, 23, 42, 0.9);
+  color: var(--text-muted);
+  text-align: left;
+  padding: 8px 12px;
+  position: sticky;
+  top: 0;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+td {
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+tr:hover {
+  background: rgba(56, 189, 248, 0.08);
+}
+
+.btn-action {
+  background: rgba(56, 189, 248, 0.2);
+  border: 1px solid var(--primary-cyan);
+  color: var(--text-main);
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+
+.btn-action:hover {
+  background: var(--primary-cyan);
+  color: var(--bg-dark);
+}
+
+/* Mission Control Controls */
+.mission-controls {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+}
+
+.mission-btn {
+  flex: 1;
+  padding: 10px;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid var(--panel-border);
+  color: var(--text-main);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mission-btn.active, .mission-btn:hover {
+  border-color: var(--primary-cyan);
+  background: rgba(56, 189, 248, 0.15);
+  box-shadow: 0 0 12px var(--panel-glow);
+}

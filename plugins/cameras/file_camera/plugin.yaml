@@ -1,0 +1,9 @@
+name: file_camera
+version: "1.0.0"
+type: camera
+author: "APEX-Track"
+license: Apache-2.0
+description: "File and Synthetic Video Generator Plugin"
+entry_point: "plugins.cameras.file_camera.plugin.FileCameraPlugin"
+requires_capabilities: []
+tags: [camera, file, synthetic, test]

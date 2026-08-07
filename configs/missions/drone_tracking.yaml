@@ -1,0 +1,10 @@
+name: drone_tracking
+description: "Counter-UAS aerial drone detection and high-speed pursuit profile"
+detector_plugin: rtmdet
+tracker_plugin: botsort
+confidence_threshold: 0.35
+nms_threshold: 0.40
+target_classes: ["drone", "airplane", "bird"]
+use_ensemble: false
+gimbal_lead_targeting: true
+speed_mode_kmh: 120

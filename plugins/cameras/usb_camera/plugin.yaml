@@ -1,0 +1,9 @@
+name: usb_camera
+version: "1.0.0"
+type: camera
+author: "APEX-Track"
+license: Apache-2.0
+description: "USB / V4L2 OpenCV Camera Plugin"
+entry_point: "plugins.cameras.usb_camera.plugin.USBCameraPlugin"
+requires_capabilities: []
+tags: [camera, v4l2, usb]

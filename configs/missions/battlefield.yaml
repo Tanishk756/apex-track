@@ -1,0 +1,10 @@
+name: battlefield
+description: "Tactical battlefield multi-model ensemble target tracking profile"
+detector_plugin: rtdetr
+tracker_plugin: botsort
+confidence_threshold: 0.50
+nms_threshold: 0.50
+target_classes: ["person", "car", "truck", "drone"]
+use_ensemble: true
+gimbal_lead_targeting: true
+speed_mode_kmh: 100

@@ -1,0 +1,9 @@
+name: bytetrack
+version: "1.0.0"
+type: tracker
+author: "APEX-Track"
+license: MIT
+description: "ByteTrack Multi-Target Tracker Plugin"
+entry_point: "plugins.trackers.bytetrack.plugin.ByteTrackPlugin"
+requires_capabilities: []
+tags: [tracker, bytetrack, mit]

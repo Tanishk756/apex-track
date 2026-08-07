@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>APEX-Track | Defense C4ISR Tactical Command Dashboard</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Top Header Navigation Bar -->
+  <header>
+    <div class="brand">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+        <polyline points="2 17 12 22 22 17"></polyline>
+        <polyline points="2 12 12 17 22 12"></polyline>
+      </svg>
+      <span>APEX-TRACK</span>
+      <span class="brand-badge">C4ISR PERCEPTION V1.0</span>
+    </div>
+
+    <div class="sys-metrics">
+      <div class="metric-item">
+        <div class="dot-active"></div>
+        <span>ENGINE: ONLINE</span>
+      </div>
+      <div class="metric-item">
+        <span>FPS: <strong id="fpsCounter" style="color:var(--accent-emerald);">2102</strong></span>
+      </div>
+      <div class="metric-item">
+        <span>LATENCY: <strong style="color:var(--primary-cyan);">0.51 ms</strong></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Dashboard Grid -->
+  <main class="dashboard-grid">
+
+    <!-- 1. Live Video Feed Panel (Top Left) -->
+    <div class="glass-panel">
+      <div class="panel-header">
+        <span>PRIMARY EO/IR OPTICAL FEED — STREAM #01</span>
+        <span>REC: ACTIVE</span>
+      </div>
+      <div class="panel-content">
+        <canvas id="hudCanvas"></canvas>
+      </div>
+    </div>
+
+    <!-- 2. Tactical Radar Sweeper (Top Right) -->
+    <div class="glass-panel">
+      <div class="panel-header">
+        <span>SPATIAL RADAR TRACKER</span>
+        <span>RANGE: 5.0 KM</span>
+      </div>
+      <div class="panel-content radar-container">
+        <canvas id="radarCanvas"></canvas>
+      </div>
+    </div>
+
+    <!-- 3. Target List & Threat Scores (Bottom Left) -->
+    <div class="glass-panel">
+      <div class="panel-header">
+        <span>ACTIVE TARGET REGISTRY</span>
+        <span>DB: SQLITE PERSISTENT</span>
+      </div>
+      <div class="panel-content table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>CLASS</th>
+              <th>CONF</th>
+              <th>SPEED</th>
+              <th>THREAT</th>
+              <th>ACTION</th>
+            </tr>
+          </thead>
+          <tbody id="targetTableBody">
+            <!-- Dynamic Telemetry Rows -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 4. Tactical Mission Control Panel (Bottom Right) -->
+    <div class="glass-panel">
+      <div class="panel-header">
+        <span>RUNTIME MISSION PROFILES</span>
+        <span>SELECT PROFILE</span>
+      </div>
+      <div class="panel-content">
+        <div class="mission-controls">
+          <button class="mission-btn active" onclick="setMission('road_vehicles')">ROAD SURVEILLANCE</button>
+          <button class="mission-btn" onclick="setMission('drone_tracking')">COUNTER-UAS</button>
+          <button class="mission-btn" onclick="setMission('battlefield')">BATTLEFIELD</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="/static/app.js"></script>
+  <script>
+    async function setMission(name) {
+      document.querySelectorAll('.mission-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+      await fetch(`/api/v1/missions/switch?profile_name=${name}`, { method: 'POST' });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+name: rtmdet
+version: "1.0.0"
+type: detector
+author: "APEX-Track"
+license: Apache-2.0
+description: "RTMDet High-Speed Object Detector Plugin"
+entry_point: "plugins.detectors.rtmdet.plugin.RTMDetPlugin"
+requires_capabilities: []
+tags: [detector, rtmdet, cnn, apache-2.0]

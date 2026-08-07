@@ -1,0 +1,10 @@
+name: road_vehicles
+description: "Road vehicle surveillance and traffic target tracking profile"
+detector_plugin: rtdetr
+tracker_plugin: bytetrack
+confidence_threshold: 0.40
+nms_threshold: 0.45
+target_classes: ["car", "truck", "bus", "motorcycle", "person"]
+use_ensemble: false
+gimbal_lead_targeting: true
+speed_mode_kmh: 80

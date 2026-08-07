@@ -1,0 +1,92 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "apex-track"
+version = "0.1.0"
+description = "Industrial-grade AI Detection & Tracking Platform"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "APEX-Track Contributors" }]
+keywords = ["tracking", "detection", "uav", "ros2", "tensorrt", "onnx"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    # Core
+    "numpy>=1.24",
+    "opencv-python-headless>=4.8",
+    "pydantic>=2.5",
+    "pyyaml>=6.0",
+    "structlog>=24.1",
+    "rich>=13.7",                    # Terminal output
+    # Async / concurrency
+    "asyncio-mqtt>=0.16",
+    "aiofiles>=23.2",
+    # API layer
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "websockets>=12.0",
+    # Inference
+    "onnxruntime>=1.17",             # CPU/CUDA EP; TensorRT EP optional
+    "torch>=2.1",                    # PyTorch fallback
+    "torchvision>=0.16",
+    # Tracking helpers
+    "scipy>=1.12",
+    "filterpy>=1.4",                 # Kalman filter base
+    # Recording
+    "av>=11.0",                      # PyAV for FFmpeg binding
+    # Telemetry
+    "pymavlink>=2.4",
+    # Utilities
+    "psutil>=5.9",
+    "gputil>=1.4",
+    "click>=8.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=4.1",
+    "ruff>=0.3",
+    "mypy>=1.8",
+    "pre-commit>=3.6",
+]
+gui = [
+    "PyQt6>=6.6",
+    "PyOpenGL>=3.1",
+]
+ros2 = []  # Installed via apt in ROS2 environment
+
+[project.scripts]
+apex-track = "apex.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["apex*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = false
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-v --tb=short"

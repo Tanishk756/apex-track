@@ -1,0 +1,35 @@
+# Desktop RTX Profile
+# Inherits default.yaml — only overrides what changes for RTX desktops.
+# Target: RTX 3080/4090, Ubuntu 22.04, TensorRT FP16, NVDEC, 120 FPS.
+
+hardware:
+  tensorrt_workspace_mb: 4096
+  cuda_streams: 4
+  pinned_memory: true
+
+detector:
+  fp_precision: fp16
+  input_size: [640, 640]
+  confidence_threshold: 0.40
+  max_detections: 300
+
+tracker:
+  reid_enabled: true          # RTX can afford Re-ID
+
+scheduler:
+  detect_every: 2             # Faster detection on RTX
+  max_detect_every: 6
+  gpu_load_high_pct: 75.0
+
+camera_manager:
+  cameras:
+    - plugin: usb_camera
+      source: "0"
+      width: 1920
+      height: 1080
+      fps: 60.0
+      hw_decode: true
+
+diagnostics:
+  health_interval_s: 0.5
+  metrics_interval_s: 0.25

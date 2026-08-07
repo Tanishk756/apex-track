@@ -1,0 +1,9 @@
+name: botsort
+version: "1.0.0"
+type: tracker
+author: "APEX-Track"
+license: MIT
+description: "BoT-SORT Multi-Target Tracker Plugin with CMC"
+entry_point: "plugins.trackers.botsort.plugin.BoTSORTPlugin"
+requires_capabilities: []
+tags: [tracker, botsort, cmc, mit]

@@ -1,0 +1,33 @@
+# Jetson Orin NX Profile — Reference Deployment
+# Target: 60 FPS, TensorRT INT8/FP16, NVDEC, 8–16 GB LPDDR5.
+
+hardware:
+  tensorrt_workspace_mb: 2048
+  cuda_streams: 2
+  pinned_memory: true
+
+detector:
+  fp_precision: fp16           # Start FP16; switch to int8 if FPS < 45
+  input_size: [640, 640]
+  confidence_threshold: 0.45
+
+tracker:
+  reid_enabled: false          # Re-ID too expensive on Orin NX at 60 FPS
+
+scheduler:
+  detect_every: 4
+  max_detect_every: 8
+  gpu_load_high_pct: 70.0
+
+camera_manager:
+  cameras:
+    - plugin: gstreamer_source
+      # Jetson CSI camera via nvarguscamerasrc
+      source: "nvarguscamerasrc sensor-id=0 ! video/x-raw(memory:NVMM),width=1280,height=720,framerate=60/1 ! nvvidconv ! video/x-raw,format=BGRx ! videoconvert ! video/x-raw,format=BGR ! appsink drop=true"
+      width: 1280
+      height: 720
+      fps: 60.0
+      hw_decode: true
+
+diagnostics:
+  gpu_warn_pct: 80.0

@@ -1,0 +1,9 @@
+name: yolo11
+version: "1.0.0"
+type: detector
+author: "Ultralytics / APEX-Track"
+license: AGPL-3.0
+description: "YOLOv11 Object Detector Plugin (AGPL-3.0)"
+entry_point: "plugins.detectors.yolo11.plugin.YOLO11Plugin"
+requires_capabilities: []
+tags: [detector, yolo11, agpl-3.0]
