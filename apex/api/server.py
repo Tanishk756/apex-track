@@ -339,7 +339,18 @@ async def switch_mission(profile_name: str) -> Dict[str, Any]:
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@app.post("/api/v1/roboflow/model")
+async def switch_roboflow_model(model_id: str):
+    """Dynamically switch active neural detector to Roboflow Universe model."""
+    pipeline = get_pipeline()
+    if hasattr(pipeline.detector, "model_id"):
+        pipeline.detector.model_id = model_id
+    log.info("switched_roboflow_model", model_id=model_id)
+    return {"status": "success", "active_roboflow_model": model_id}
+
+
 @app.post("/api/v1/vision/mode")
+
 async def set_vision_mode(mode: str):
     """Sets multi-spectral thermal IR vision mode (EO, FLIR_IRONBOW, FLIR_WHITE_HOT, FLIR_BLACK_HOT, NVG_GREEN)."""
     valid_modes = [ThermalVisionMode.EO, ThermalVisionMode.FLIR_IRONBOW, ThermalVisionMode.FLIR_WHITE_HOT, ThermalVisionMode.FLIR_BLACK_HOT, ThermalVisionMode.NVG_GREEN]

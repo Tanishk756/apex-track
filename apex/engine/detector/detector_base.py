@@ -32,7 +32,7 @@ IGNORED_CLUTTER_CLASSES = {
     "bed", "bench", "parking meter", "toilet", "chair", "potted plant", "couch",
     "sofa", "sink", "refrigerator", "microwave", "oven", "toaster", "dining table",
     "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush", "book", "tv",
-    "suitcase", "kite", "airplane", "umbrella", "backpack", "handbag", "tie", "sports ball"
+    "suitcase", "umbrella", "backpack", "handbag", "tie", "sports ball"
 }
 
 VALID_TARGET_CLASSES = {
@@ -131,8 +131,7 @@ class DetectorBase(PluginBase, abc.ABC):
 
         # 1. Real Ultralytics Neural Object Detector
         if self._yolo is not None:
-
-            results = self._yolo.predict(frame.data, conf=self.conf_threshold, verbose=False)
+            results = self._yolo.predict(frame.data, conf=0.30, verbose=False)
             detections: list[Detection] = []
             if results and len(results) > 0:
                 for box in results[0].boxes:
@@ -142,10 +141,14 @@ class DetectorBase(PluginBase, abc.ABC):
                     cls_name = self._yolo.names.get(cls_id, f"class_{cls_id}") if hasattr(self._yolo, "names") else f"class_{cls_id}"
 
                     raw_cls = str(cls_name).lower().strip()
-                    # Filter out non-tactical clutter and non-target classes
-                    if raw_cls in IGNORED_CLUTTER_CLASSES or raw_cls not in VALID_TARGET_CLASSES:
+                    # Filter out non-tactical clutter
+                    if raw_cls in IGNORED_CLUTTER_CLASSES:
                         continue
-                    if raw_cls == "tv":
+
+                    # Map COCO airborne predictions to tactical DRONE class
+                    if raw_cls in ("airplane", "kite", "bird", "quadcopter", "uav"):
+                        cls_name = "drone"
+                    elif raw_cls == "tv":
                         cls_name = "monitor"
 
                     det = Detection(

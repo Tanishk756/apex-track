@@ -147,7 +147,9 @@ async function setVisionMode(mode) {
 
 async function switchRoboflowModel(modelId) {
   try {
-    console.log('Switching Roboflow Model:', modelId);
+    const res = await fetch(`/api/v1/roboflow/model?model_id=${encodeURIComponent(modelId)}`, { method: 'POST' });
+    const data = await res.json();
+    console.log('Roboflow model switched to:', data.active_roboflow_model);
   } catch (e) {
     console.error('Failed to switch Roboflow model:', e);
   }
