@@ -93,7 +93,16 @@ class MasterPipeline:
                 gimbal_pitch_deg=telemetry.pitch_deg,
                 gimbal_yaw_deg=telemetry.yaw_deg,
             )
-            # Re-instantiate Track with populated world_point
+            # Compute real-time RTOS velocity and speed from Kalman filter state
+            vx, vy = tr.velocity_px
+            speed_px_s = (vx**2 + vy**2) ** 0.5
+            # Static target threshold: if pixel velocity < 2.5 px/s, target is static (0.0 km/h)
+            if speed_px_s < 2.5:
+                calc_speed = 0.0
+            else:
+                calc_speed = round(float(speed_px_s * 0.18), 1)
+
+            # Re-instantiate Track with populated world_point and dynamic real-time speed
             new_tr = Track(
                 track_id=tr.track_id,
                 state=tr.state,
@@ -106,12 +115,13 @@ class MasterPipeline:
                 camera_id=tr.camera_id,
                 velocity_px=tr.velocity_px,
                 world_point=(lat, lon, alt),
-                speed_kmh=80.0,
+                speed_kmh=calc_speed,
                 age_frames=tr.age_frames,
                 hits=tr.hits,
                 misses=tr.misses,
             )
             updated_tracks.append(new_tr)
+
 
         # 5. Target Database Update
         self.target_db.update_tracks(updated_tracks)

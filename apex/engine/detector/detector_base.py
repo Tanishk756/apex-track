@@ -60,32 +60,39 @@ class DetectorBase(PluginBase, abc.ABC):
     ) -> list[Detection]:
         """Convert raw network output tensors into Detection contracts."""
 
-    async def load(self, config: dict, hw_profile: HWProfile) -> None:
-        """Initialize detector configuration and load backend InferenceEngine or YOLO neural network."""
+    async def load(self, config: dict[str, Any], hw_profile: HWProfile) -> None:
+        """Initialize detector plugin with runtime configuration."""
         self.config = config
         self.hw_profile = hw_profile
         self.conf_threshold = float(config.get("confidence_threshold", self.conf_threshold))
         self.nms_threshold = float(config.get("nms_iou_threshold", self.nms_threshold))
 
         model_path = config.get("model_path", "")
-        use_real_ai = config.get("use_real_ai", False)
+        # Enable real YOLO AI model for production profiles, disable for test profiles
+        is_test_profile = getattr(hw_profile, "profile_name", "").startswith("test_")
+        use_real_ai = config.get("use_real_ai", not is_test_profile)
 
         if not model_path:
             if use_real_ai:
-                # Auto-load Ultralytics YOLO model for real-time live vision inference
+                # Auto-load high-precision Ultralytics YOLO model for real-time live vision inference
                 try:
                     from ultralytics import YOLO
-                    log.info("loading_realtime_yolo_model", model="yolov8n.pt")
-                    self._yolo = YOLO("yolov8n.pt")
+                    model_to_load = config.get("model_name", "yolov8s.pt")
+                    if not str(model_to_load).endswith(".pt"):
+                        model_to_load = "yolov8s.pt"
+                    log.info("loading_realtime_yolo_model", model=model_to_load)
+                    self._yolo = YOLO(model_to_load)
                 except Exception as exc:
-                    log.warning("ultralytics_yolo_load_failed", error=str(exc))
-                    self._yolo = None
+                    log.warning("ultralytics_yolo_load_failed_falling_back", error=str(exc))
+                    try:
+                        self._yolo = YOLO("yolov8n.pt")
+                    except Exception:
+                        self._yolo = None
             else:
                 self._yolo = None
 
             self._set_status(PluginStatus.ACTIVE)
             return
-
 
         precision = config.get("fp_precision", hw_profile.capabilities.recommended_fp_precision)
         self.engine = EngineFactory.create(model_path, hw_profile, preferred_precision=precision)
@@ -114,6 +121,10 @@ class DetectorBase(PluginBase, abc.ABC):
                     score = float(box.conf[0])
                     cls_id = int(box.cls[0])
                     cls_name = self._yolo.names.get(cls_id, f"class_{cls_id}") if hasattr(self._yolo, "names") else f"class_{cls_id}"
+
+                    # Filter out non-tactical indoor/furniture clutter classes
+                    if str(cls_name).lower() in IGNORED_CLUTTER_CLASSES:
+                        continue
 
                     det = Detection(
                         bbox=BoundingBox(x1, y1, x2, y2),

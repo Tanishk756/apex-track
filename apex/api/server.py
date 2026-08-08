@@ -96,8 +96,9 @@ def draw_hud_overlay(img: np.ndarray, tracks: list) -> np.ndarray:
 
         label = f"TRK #{tr.track_id:02d} {tr.class_name.upper()} [{int(tr.confidence * 100)}%]"
         cv2.putText(annotated, label, (x1, max(15, y1 - 8)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
-        speed = getattr(tr, 'speed_kmh', 100.0)
+        speed = getattr(tr, 'speed_kmh', 0.0) if getattr(tr, 'speed_kmh', None) is not None else 0.0
         cv2.putText(annotated, f"VEL: {speed:.1f} km/h", (x1, y2 + 18), cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 1)
+
 
     return annotated
 

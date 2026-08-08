@@ -111,7 +111,8 @@ async function startTelemetryLoop() {
             <td>#${t.track_id}</td>
             <td>${t.class_name.toUpperCase()}</td>
             <td>${(t.confidence * 100).toFixed(0)}%</td>
-            <td>${t.speed_kmh ? t.speed_kmh.toFixed(1) : '100.0'} km/h</td>
+            <td>${(t.speed_kmh !== undefined && t.speed_kmh !== null) ? Number(t.speed_kmh).toFixed(1) : '0.0'} km/h</td>
+
             <td><span style="color:#10b981;">CONFIRMED</span></td>
             <td><button class="btn-action" onclick="lockTarget(${t.track_id})">LOCK</button></td>
           </tr>
