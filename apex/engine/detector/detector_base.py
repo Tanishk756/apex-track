@@ -28,8 +28,15 @@ from apex.engine.plugins.plugin_base import PluginBase, PluginStatus
 
 log = structlog.get_logger(__name__)
 
+IGNORED_CLUTTER_CLASSES = {
+    "bed", "bench", "parking meter", "toilet", "chair", "potted plant", "couch",
+    "sofa", "sink", "refrigerator", "microwave", "oven", "toaster", "dining table",
+    "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush", "book", "tv"
+}
+
 
 class DetectorBase(PluginBase, abc.ABC):
+
     """Abstract base class for object detector plugins."""
 
     def __init__(self) -> None:
