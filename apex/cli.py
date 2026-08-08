@@ -21,11 +21,21 @@ from apex.engine.hal import hw_detector, hw_profile
 
 def serve_command(args: argparse.Namespace) -> None:
     """Launch the FastAPI operational dashboard server."""
+    if args.camera_source:
+        import os
+        os.environ["APEX_CAMERA_SOURCE"] = args.camera_source
+        print(f"  Camera Source override set to: {args.camera_source}")
+    if args.camera_plugin:
+        import os
+        os.environ["APEX_CAMERA_PLUGIN"] = args.camera_plugin
+        print(f"  Camera Plugin override set to: {args.camera_plugin}")
+
     print(f"===========================================================")
     print(f"  APEX-Track C4ISR Tactical Command Server v{__version__}")
     print(f"  Listening on http://{args.host}:{args.port}")
     print(f"===========================================================")
     uvicorn.run("apex.api.server:app", host=args.host, port=args.port, reload=args.reload)
+
 
 
 def bench_command(args: argparse.Namespace) -> None:
@@ -88,8 +98,11 @@ def main() -> None:
     serve_parser = subparsers.add_parser("serve", help="Start FastAPI Operational Server & Dashboard")
     serve_parser.add_argument("--host", type=str, default="0.0.0.0", help="Host address (default: 0.0.0.0)")
     serve_parser.add_argument("--port", type=int, default=8000, help="Port number (default: 8000)")
+    serve_parser.add_argument("--camera-source", type=str, default=None, help="Camera video stream source (URL or device index, e.g., http://192.168.1.50:4747/video or 0)")
+    serve_parser.add_argument("--camera-plugin", type=str, default=None, choices=["usb_camera", "rtsp_camera", "gstreamer_source"], help="Camera plugin type")
     serve_parser.add_argument("--reload", action="store_true", help="Enable auto-reload for dev")
     serve_parser.set_defaults(func=serve_command)
+
 
     # bench command
     bench_parser = subparsers.add_parser("bench", help="Run Latency and FPS Benchmarks")
