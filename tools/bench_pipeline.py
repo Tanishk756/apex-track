@@ -62,8 +62,13 @@ async def main(num_frames: int) -> None:
     print("==========================")
 
 
+def run_benchmark(iterations: int = 100) -> None:
+    asyncio.run(main(iterations))
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Master Pipeline Benchmark")
     parser.add_argument("--frames", type=int, default=100, help="Number of benchmark frames")
     args = parser.parse_args()
-    asyncio.run(main(args.frames))
+    run_benchmark(args.frames)
+
