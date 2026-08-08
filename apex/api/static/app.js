@@ -114,7 +114,11 @@ async function startTelemetryLoop() {
             <td>${(t.speed_kmh !== undefined && t.speed_kmh !== null) ? Number(t.speed_kmh).toFixed(1) : '0.0'} km/h</td>
 
             <td><span style="color:#10b981;">CONFIRMED</span></td>
-            <td><button class="btn-action" onclick="lockTarget(${t.track_id})">LOCK</button></td>
+            <td>
+              <button class="btn-action" onclick="lockTarget(${t.track_id})">LOCK</button>
+              <button class="btn-action" style="background:#f59e0b;" onclick="triggerJamming(${t.track_id})">JAM</button>
+              <button class="btn-action" style="background:#ef4444;" onclick="triggerIntercept(${t.track_id})">INTERCEPT</button>
+            </td>
           </tr>
         `).join('');
       } else {
@@ -164,5 +168,26 @@ async function lockTarget(id) {
     console.error('Failed to lock target:', e);
   }
 }
+
+async function triggerJamming(id) {
+  try {
+    const res = await fetch(`/api/v1/countermeasures/jam?target_id=${id}`, { method: 'POST' });
+    const data = await res.json();
+    alert(`DIRECTIONAL RF JAMMING ACTIVE ON TARGET #${id}`);
+  } catch (e) {
+    console.error('Failed to trigger RF jamming:', e);
+  }
+}
+
+async function triggerIntercept(id) {
+  try {
+    const res = await fetch(`/api/v1/countermeasures/intercept?target_id=${id}`, { method: 'POST' });
+    const data = await res.json();
+    alert(`KINETIC INTERCEPT ENGAGED ON TARGET #${id}`);
+  } catch (e) {
+    console.error('Failed to trigger kinetic intercept:', e);
+  }
+}
+
 
 

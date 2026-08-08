@@ -36,6 +36,8 @@ from apex.engine.fusion.sensor_fusion import SensorFusionEngine
 from apex.engine.spatial.swarm_defense import SwarmDefenseGrid
 from apex.engine.analytics.anomaly_detector import AnomalyDetector
 from apex.engine.recording.blackbox_recorder import BlackboxRecorder
+from apex.engine.spatial.intercept_calculator import InterceptCalculator
+from apex.engine.mission.countermeasures import CountermeasureEngine
 from plugins.cameras.rtsp_camera.plugin import RTSPCameraPlugin
 from plugins.cameras.usb_camera.plugin import USBCameraPlugin
 
@@ -43,8 +45,8 @@ log = structlog.get_logger(__name__)
 
 app = FastAPI(
     title="APEX-Track Perception Platform API",
-    version="3.0.0",
-    description="Ultra-low latency defense-grade detection, thermal fusion & tracking REST/WS API",
+    version="4.0.0",
+    description="Ultra-low latency defense-grade detection, thermal fusion & RF-DETR 2XL tracking REST/WS API",
 )
 
 # Enable CORS for C4ISR tactical dashboards
@@ -66,7 +68,7 @@ camera_instance = None
 latest_jpeg_bytes: bytes | None = None
 camera_status_msg: str = "INITIALIZING OPTICAL FEED"
 
-# Advanced v3.0 Subsystem Engines
+# Advanced v4.0 Subsystem Engines
 trajectory_predictor = TrajectoryPredictor()
 threat_matrix = ThreatMatrixEngine()
 thermal_shader = ThermalFusionShader(mode=ThermalVisionMode.EO)
@@ -74,6 +76,9 @@ sensor_fusion = SensorFusionEngine()
 swarm_grid = SwarmDefenseGrid()
 anomaly_detector = AnomalyDetector()
 blackbox_recorder = BlackboxRecorder()
+intercept_calculator = InterceptCalculator()
+countermeasure_engine = CountermeasureEngine()
+
 
 
 def get_pipeline() -> MasterPipeline:
@@ -398,7 +403,35 @@ async def get_advanced_telemetry():
     }
 
 
+@app.post("/api/v1/countermeasures/jam")
+async def trigger_jamming(target_id: int):
+    """Manually trigger directional RF Jamming soft-kill on target ID."""
+    return countermeasure_engine.trigger_manual_jamming(target_id)
+
+
+@app.post("/api/v1/countermeasures/intercept")
+async def trigger_intercept(target_id: int):
+    """Manually engage kinetic intercept pursuit hard-kill on target ID."""
+    return countermeasure_engine.trigger_manual_intercept(target_id)
+
+
+@app.get("/api/v1/intercept/vectors")
+async def get_intercept_vectors():
+    """Returns 3D intercept bearing, elevation, slant range, and TTI calculations."""
+    pipeline = get_pipeline()
+    tracks = pipeline.active_tracks.tracks
+    vectors = [intercept_calculator.compute_intercept(tr) for tr in tracks]
+    traj_data = trajectory_predictor.update_and_predict(tracks)
+    t_eval = threat_matrix.evaluate_threats(tracks, traj_data)
+    cm_eval = countermeasure_engine.evaluate_countermeasures(t_eval, vectors)
+    return {
+        "intercept_vectors": vectors,
+        "countermeasure_status": cm_eval,
+    }
+
+
 @app.websocket("/ws/telemetry")
+
 
 async def telemetry_websocket(websocket: WebSocket) -> None:
     await websocket.accept()
