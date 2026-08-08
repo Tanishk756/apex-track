@@ -3,7 +3,7 @@ RTSP / HTTP IP Camera Plugin
 ============================
 Ultra-low latency RTSP/HTTP network video stream capture plugin.
 Supports HTTP MJPEG streams (DroidCam, IP Webcam), GStreamer pipelines, and FFmpeg/OpenCV fallbacks.
-Non-blocking execution using worker threads.
+Non-blocking execution using worker threads and automatic reconnect handling.
 """
 
 from __future__ import annotations
@@ -37,6 +37,7 @@ class RTSPCameraPlugin(CameraPlugin):
     def __init__(self, camera_id: str = "rtsp_cam_0") -> None:
         super().__init__(camera_id=camera_id)
         self._cap: Optional[cv2.VideoCapture] = None
+        self._failed_grabs: int = 0
 
     def _open_capture_sync(self, url: str, hw_decode: bool, latency_ms: int) -> bool:
         """Synchronous backend capture opening executed in thread."""
@@ -62,6 +63,7 @@ class RTSPCameraPlugin(CameraPlugin):
 
         if self._cap is not None and self._cap.isOpened():
             self._cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            self._failed_grabs = 0
             log.info("rtsp_camera_connected", camera_id=self.camera_id)
             return True
 
@@ -82,9 +84,17 @@ class RTSPCameraPlugin(CameraPlugin):
         ts = time.time()
         ret, frame = self._cap.read()
         if not ret or frame is None:
+            self._failed_grabs += 1
+            if self._failed_grabs >= 5:
+                log.warning("rtsp_stream_ended_reconnecting", camera_id=self.camera_id)
+                if self._cap is not None:
+                    self._cap.release()
+                    self._cap = None
+                self._failed_grabs = 0
             return None
-        return frame, ts
 
+        self._failed_grabs = 0
+        return frame, ts
 
     async def _grab_frame(self) -> Optional[tuple[np.ndarray, float]]:
         if self._cap is None or not self._cap.isOpened():
@@ -97,4 +107,5 @@ class RTSPCameraPlugin(CameraPlugin):
             cap = self._cap
             self._cap = None
             await asyncio.to_thread(cap.release)
+        self._failed_grabs = 0
         log.info("rtsp_camera_disconnected", camera_id=self.camera_id)

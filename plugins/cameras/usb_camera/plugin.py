@@ -37,6 +37,7 @@ class USBCameraPlugin(CameraPlugin):
     def __init__(self, camera_id: str = "usb_cam_0") -> None:
         super().__init__(camera_id=camera_id)
         self._cap: Optional[cv2.VideoCapture] = None
+        self._failed_grabs: int = 0
 
     def _open_capture_sync(self, src: Any) -> bool:
         try:
@@ -62,6 +63,7 @@ class USBCameraPlugin(CameraPlugin):
         self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
         self._cap.set(cv2.CAP_PROP_FPS, fps)
         self._cap.set(cv2.CAP_PROP_BUFFERSIZE, int(self.config.get("buffer_size", 1)))
+        self._failed_grabs = 0
 
         log.info("usb_camera_connected", camera_id=self.camera_id, width=width, height=height, fps=fps)
         return True
@@ -77,8 +79,16 @@ class USBCameraPlugin(CameraPlugin):
         ts = time.time()
         ret, frame = self._cap.read()
         if not ret or frame is None:
+            self._failed_grabs += 1
+            if self._failed_grabs >= 5:
+                log.warning("usb_camera_stream_failed_reconnecting", camera_id=self.camera_id)
+                if self._cap is not None:
+                    self._cap.release()
+                    self._cap = None
+                self._failed_grabs = 0
             return None
 
+        self._failed_grabs = 0
         return frame, ts
 
     async def _grab_frame(self) -> Optional[tuple[np.ndarray, float]]:
@@ -91,4 +101,5 @@ class USBCameraPlugin(CameraPlugin):
             cap = self._cap
             self._cap = None
             await asyncio.to_thread(cap.release)
+        self._failed_grabs = 0
         log.info("usb_camera_disconnected", camera_id=self.camera_id)

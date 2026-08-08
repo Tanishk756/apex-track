@@ -51,7 +51,9 @@ class DetectorConfig(BaseModel):
     plugin: str = "rtdetr"
     """Name of the detector plugin to load from the registry."""
     model_name: str = "rtdetr_r50vd_coco"
+    use_real_ai: bool = True
     confidence_threshold: float = Field(default=0.45, ge=0.0, le=1.0)
+
     nms_iou_threshold: float = Field(default=0.45, ge=0.0, le=1.0)
     max_detections: int = Field(default=300, ge=1)
     input_size: tuple[int, int] = (640, 640)
