@@ -135,7 +135,32 @@ async function startTelemetryLoop() {
   fetchTargets();
 }
 
-function lockTarget(id) {
-  alert(`Target #${id} Locked for Gimbal Tracking Pursuit`);
+async function setVisionMode(mode) {
+  try {
+    const res = await fetch(`/api/v1/vision/mode?mode=${mode}`, { method: 'POST' });
+    const data = await res.json();
+    console.log('Vision mode set to:', data.vision_mode);
+  } catch (e) {
+    console.error('Failed to set vision mode:', e);
+  }
 }
+
+async function switchRoboflowModel(modelId) {
+  try {
+    console.log('Switching Roboflow Model:', modelId);
+  } catch (e) {
+    console.error('Failed to switch Roboflow model:', e);
+  }
+}
+
+async function lockTarget(id) {
+  try {
+    const res = await fetch(`/api/v1/targets/lock?track_id=${id}`, { method: 'POST' });
+    const data = await res.json();
+    alert(`OPTICAL GIMBAL LOCKED ON TARGET #${id}`);
+  } catch (e) {
+    console.error('Failed to lock target:', e);
+  }
+}
+
 

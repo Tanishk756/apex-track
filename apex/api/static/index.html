@@ -101,6 +101,26 @@
           <button class="mission-btn" onclick="setMission('drone_tracking')">COUNTER-UAS</button>
           <button class="mission-btn" onclick="setMission('battlefield')">BATTLEFIELD</button>
         </div>
+
+        <div style="margin-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 10px;">
+          <div style="font-size: 11px; color: #94a3b8; font-weight: 600; margin-bottom: 6px;">MULTI-SPECTRAL THERMAL PALETTE</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+            <button class="mission-btn active" onclick="setVisionMode('EO')">EO DAYLIGHT</button>
+            <button class="mission-btn" onclick="setVisionMode('FLIR_IRONBOW')">FLIR IRONBOW</button>
+            <button class="mission-btn" onclick="setVisionMode('FLIR_WHITE_HOT')">IR WHITE HOT</button>
+            <button class="mission-btn" onclick="setVisionMode('NVG_GREEN')">NVG GREEN</button>
+          </div>
+        </div>
+
+        <div style="margin-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 8px;">
+          <div style="font-size: 11px; color: #94a3b8; font-weight: 600; margin-bottom: 4px;">ROBOFLOW VISION AI MODEL</div>
+          <select id="roboflowSelect" onchange="switchRoboflowModel(this.value)" style="width: 100%; background: #0f172a; border: 1px solid #334155; color: #06b6d4; padding: 6px; border-radius: 4px; font-size: 12px; font-weight: 600;">
+            <option value="coco_standard">COCO YOLOv8x High-Precision</option>
+            <option value="uav-detection/3">Roboflow UAV Tactical Counter-UAS</option>
+            <option value="military-vehicles/1">Roboflow Military Ground Vehicles</option>
+          </select>
+        </div>
+
       </div>
     </div>
 

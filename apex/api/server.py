@@ -29,6 +29,13 @@ from apex.engine.config.config_manager import ConfigManager
 from apex.engine.contracts.frame import Frame, FrameMetadata
 from apex.engine.hal import hw_detector
 from apex.engine.pipeline.master_pipeline import MasterPipeline
+from apex.engine.spatial.trajectory_predictor import TrajectoryPredictor
+from apex.engine.mission.threat_matrix import ThreatMatrixEngine
+from apex.engine.pipeline.thermal_fusion import ThermalFusionShader, ThermalVisionMode
+from apex.engine.fusion.sensor_fusion import SensorFusionEngine
+from apex.engine.spatial.swarm_defense import SwarmDefenseGrid
+from apex.engine.analytics.anomaly_detector import AnomalyDetector
+from apex.engine.recording.blackbox_recorder import BlackboxRecorder
 from plugins.cameras.rtsp_camera.plugin import RTSPCameraPlugin
 from plugins.cameras.usb_camera.plugin import USBCameraPlugin
 
@@ -36,8 +43,8 @@ log = structlog.get_logger(__name__)
 
 app = FastAPI(
     title="APEX-Track Perception Platform API",
-    version="1.0.0",
-    description="Ultra-low latency defense-grade detection & tracking REST/WS API",
+    version="3.0.0",
+    description="Ultra-low latency defense-grade detection, thermal fusion & tracking REST/WS API",
 )
 
 # Enable CORS for C4ISR tactical dashboards
@@ -59,6 +66,15 @@ camera_instance = None
 latest_jpeg_bytes: bytes | None = None
 camera_status_msg: str = "INITIALIZING OPTICAL FEED"
 
+# Advanced v3.0 Subsystem Engines
+trajectory_predictor = TrajectoryPredictor()
+threat_matrix = ThreatMatrixEngine()
+thermal_shader = ThermalFusionShader(mode=ThermalVisionMode.EO)
+sensor_fusion = SensorFusionEngine()
+swarm_grid = SwarmDefenseGrid()
+anomaly_detector = AnomalyDetector()
+blackbox_recorder = BlackboxRecorder()
+
 
 def get_pipeline() -> MasterPipeline:
     global pipeline_instance
@@ -68,21 +84,58 @@ def get_pipeline() -> MasterPipeline:
 
 
 def draw_hud_overlay(img: np.ndarray, tracks: list) -> np.ndarray:
-    annotated = img.copy()
+    # 1. Apply Thermal Vision Shader
+    annotated = thermal_shader.apply_fusion(img).copy()
     h, w = annotated.shape[:2]
+
+    # 2. Compute Trajectory & Threat Analysis
+    traj_data = trajectory_predictor.update_and_predict(tracks)
+    threat_data = threat_matrix.evaluate_threats(tracks, traj_data, frame_w=w, frame_h=h)
+    swarm_data = swarm_grid.analyze_swarms(tracks)
+    anomalies = anomaly_detector.detect_anomalies(tracks, traj_data)
+
+    # Record to Blackbox Logger
+    blackbox_recorder.record_frame_event(
+        frame_id=int(time.time() * 30),
+        tracks=tracks,
+        threat_data=threat_data,
+        thermal_mode=thermal_shader.mode,
+    )
 
     # Center Reticle
     cx, cy = w // 2, h // 2
-    cv2.circle(annotated, (cx, cy), 30, (248, 189, 56), 1)
-    cv2.line(annotated, (cx - 45, cy), (cx - 15, cy), (248, 189, 56), 1)
-    cv2.line(annotated, (cx + 15, cy), (cx + 45, cy), (248, 189, 56), 1)
-    cv2.line(annotated, (cx, cy - 45), (cx, cy - 15), (248, 189, 56), 1)
-    cv2.line(annotated, (cx, cy + 15), (cx, cy + 45), (248, 189, 56), 1)
+    reticle_color = (248, 189, 56) if thermal_shader.mode == ThermalVisionMode.EO else (0, 255, 255)
+    cv2.circle(annotated, (cx, cy), 30, reticle_color, 1)
+    cv2.line(annotated, (cx - 45, cy), (cx - 15, cy), reticle_color, 1)
+    cv2.line(annotated, (cx + 15, cy), (cx + 45, cy), reticle_color, 1)
+    cv2.line(annotated, (cx, cy - 45), (cx, cy - 15), reticle_color, 1)
+    cv2.line(annotated, (cx, cy + 15), (cx, cy + 45), reticle_color, 1)
+
+    # Swarm Alert Banner
+    if swarm_data.get("swarm_detected", False):
+        cv2.putText(
+            annotated,
+            f"SWARM ALERT: {swarm_data['drone_count']} DRONES DETECTED",
+            (40, 40),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.6,
+            (0, 0, 255),
+            2,
+        )
 
     # Active Detections & Tracks
     for tr in tracks:
         x1, y1, x2, y2 = int(tr.bbox.x1), int(tr.bbox.y1), int(tr.bbox.x2), int(tr.bbox.y2)
-        color = (129, 185, 16) if tr.state.name == "CONFIRMED" else (11, 158, 245)
+        tid = tr.track_id
+        t_info = threat_data.get("threat_matrix", {}).get(tid, {})
+        t_level = t_info.get("level", "CHARLIE")
+        t_score = t_info.get("score", 0.0)
+
+        color = (129, 185, 16)
+        if t_level == "ALPHA":
+            color = (0, 0, 255)  # Bright Red for ALPHA Threat
+        elif t_level == "BRAVO":
+            color = (0, 165, 255)  # Orange for BRAVO Threat
 
         # Bounding box
         cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2)
@@ -94,10 +147,22 @@ def draw_hud_overlay(img: np.ndarray, tracks: list) -> np.ndarray:
         cv2.line(annotated, (x2, y1), (x2 - corner, y1), color, 3)
         cv2.line(annotated, (x2, y1), (x2, y1 + corner), color, 3)
 
-        label = f"TRK #{tr.track_id:02d} {tr.class_name.upper()} [{int(tr.confidence * 100)}%]"
-        cv2.putText(annotated, label, (x1, max(15, y1 - 8)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
-        speed = getattr(tr, 'speed_kmh', 0.0) if getattr(tr, 'speed_kmh', None) is not None else 0.0
-        cv2.putText(annotated, f"VEL: {speed:.1f} km/h", (x1, y2 + 18), cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 1)
+        label = f"TRK #{tr.track_id:02d} {tr.class_name.upper()} [{int(tr.confidence * 100)}%] {t_level}"
+        cv2.putText(annotated, label, (x1, max(15, y1 - 8)), cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 1)
+        speed = getattr(tr, "speed_kmh", 0.0) if getattr(tr, "speed_kmh", None) is not None else 0.0
+        cv2.putText(annotated, f"VEL: {speed:.1f} km/h | T: {t_score:.0f}%", (x1, y2 + 18), cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1)
+
+        # 3. Draw Future Flight Trajectory Vector Dotted Line (+1s, +2s, +3s, +5s)
+        t_traj = traj_data.get(tid, {}).get("future_points", [])
+        prev_p = (int(tr.bbox.cx), int(tr.bbox.cy))
+        for fp in t_traj:
+            next_p = (int(fp[0]), int(fp[1]))
+            cv2.line(annotated, prev_p, next_p, color, 1, cv2.LINE_AA)
+            cv2.circle(annotated, next_p, 3, color, -1)
+            prev_p = next_p
+
+    return annotated
+
 
 
     return annotated
@@ -274,7 +339,56 @@ async def switch_mission(profile_name: str) -> Dict[str, Any]:
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@app.post("/api/v1/vision/mode")
+async def set_vision_mode(mode: str):
+    """Sets multi-spectral thermal IR vision mode (EO, FLIR_IRONBOW, FLIR_WHITE_HOT, FLIR_BLACK_HOT, NVG_GREEN)."""
+    valid_modes = [ThermalVisionMode.EO, ThermalVisionMode.FLIR_IRONBOW, ThermalVisionMode.FLIR_WHITE_HOT, ThermalVisionMode.FLIR_BLACK_HOT, ThermalVisionMode.NVG_GREEN]
+    mode_upper = mode.upper().strip()
+    if mode_upper not in valid_modes:
+        raise HTTPException(status_code=400, detail=f"Invalid vision mode. Must be one of {valid_modes}")
+    thermal_shader.mode = mode_upper
+    return {"status": "success", "vision_mode": mode_upper}
+
+
+@app.post("/api/v1/targets/lock")
+async def lock_target(track_id: int):
+    """Manually lock optical tracking gimbal onto specific track ID."""
+    threat_matrix.primary_lock_id = track_id
+    return {"status": "success", "primary_lock_id": track_id}
+
+
+@app.get("/api/v1/threats")
+async def get_threat_status():
+    """Returns real-time threat matrix and drone swarm analytics."""
+    pipeline = get_pipeline()
+    tracks = pipeline.active_tracks.tracks
+    traj_data = trajectory_predictor.update_and_predict(tracks)
+    t_eval = threat_matrix.evaluate_threats(tracks, traj_data)
+    swarm_eval = swarm_grid.analyze_swarms(tracks)
+    return {
+        "threat_assessment": t_eval,
+        "swarm_analytics": swarm_eval,
+        "active_vision_mode": thermal_shader.mode,
+    }
+
+
+@app.get("/api/v1/telemetry/advanced")
+async def get_advanced_telemetry():
+    """Returns spatial trajectories, acoustic bearings, and kinematic anomalies."""
+    pipeline = get_pipeline()
+    tracks = pipeline.active_tracks.tracks
+    traj_data = trajectory_predictor.update_and_predict(tracks)
+    acoustic_fused = sensor_fusion.correlate_tracks(tracks)
+    anomalies = anomaly_detector.detect_anomalies(tracks, traj_data)
+    return {
+        "trajectories": traj_data,
+        "rf_acoustic_fusion": acoustic_fused,
+        "anomalies": anomalies,
+    }
+
+
 @app.websocket("/ws/telemetry")
+
 async def telemetry_websocket(websocket: WebSocket) -> None:
     await websocket.accept()
     log.info("ws_client_connected", client=str(websocket.client))
