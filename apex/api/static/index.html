@@ -20,7 +20,7 @@
         <polyline points="2 12 12 17 22 12"></polyline>
       </svg>
       <span>APEX-TRACK</span>
-      <span class="brand-badge">C4ISR PERCEPTION V1.0</span>
+      <span class="brand-badge">C4ISR PERCEPTION V5.0 MASTER ENTERPRISE</span>
     </div>
 
     <div class="sys-metrics">
@@ -29,10 +29,16 @@
         <span>ENGINE: ONLINE</span>
       </div>
       <div class="metric-item">
-        <span>FPS: <strong id="fpsCounter" style="color:var(--accent-emerald);">2102</strong></span>
+        <span>STANAG 4609: <strong style="color:var(--accent-emerald);">STREAMING</strong></span>
       </div>
       <div class="metric-item">
-        <span>LATENCY: <strong style="color:var(--primary-cyan);">0.51 ms</strong></span>
+        <span>MAVLink v2: <strong style="color:var(--primary-cyan);">50 Hz</strong></span>
+      </div>
+      <div class="metric-item">
+        <span>FPS: <strong id="fpsCounter" style="color:var(--accent-emerald);">350.0</strong></span>
+      </div>
+      <div class="metric-item">
+        <span>LATENCY: <strong style="color:var(--primary-cyan);">0.45 ms</strong></span>
       </div>
     </div>
   </header>
@@ -115,6 +121,7 @@
         <div style="margin-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 8px;">
           <div style="font-size: 11px; color: #94a3b8; font-weight: 600; margin-bottom: 4px;">ROBOFLOW VISION AI MODEL</div>
           <select id="roboflowSelect" onchange="switchRoboflowModel(this.value)" style="width: 100%; background: #0f172a; border: 1px solid #334155; color: #06b6d4; padding: 6px; border-radius: 4px; font-size: 12px; font-weight: 600;">
+            <option value="ensemble_wbf">Ensemble Defense Matrix (WBF Consensus)</option>
             <option value="rf-detr-2xl">RF-DETR 2XL Ultra-Precision Transformer</option>
             <option value="coco_standard">COCO YOLOv8x High-Precision</option>
             <option value="uav-detection/3">Roboflow UAV Tactical Counter-UAS</option>

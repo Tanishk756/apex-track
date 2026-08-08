@@ -68,7 +68,10 @@ camera_instance = None
 latest_jpeg_bytes: bytes | None = None
 camera_status_msg: str = "INITIALIZING OPTICAL FEED"
 
-# Advanced v4.0 Subsystem Engines
+from apex.engine.hal.plugin_hub import PluginHub
+from apex.engine.hal.mavlink_stanag import MAVLinkStanagEngine
+
+# Advanced v5.0 Subsystem Engines
 trajectory_predictor = TrajectoryPredictor()
 threat_matrix = ThreatMatrixEngine()
 thermal_shader = ThermalFusionShader(mode=ThermalVisionMode.EO)
@@ -78,6 +81,9 @@ anomaly_detector = AnomalyDetector()
 blackbox_recorder = BlackboxRecorder()
 intercept_calculator = InterceptCalculator()
 countermeasure_engine = CountermeasureEngine()
+plugin_hub = PluginHub()
+stanag_mavlink = MAVLinkStanagEngine()
+
 
 
 
@@ -430,7 +436,33 @@ async def get_intercept_vectors():
     }
 
 
+@app.get("/api/v1/plugins/catalog")
+async def get_plugin_catalog():
+    """Returns catalog of all registered perception, tracker, and camera HAL plugins."""
+    return {"catalog": plugin_hub.list_registered_plugins()}
+
+
+@app.get("/api/v1/interop/status")
+async def get_interop_status():
+    """Returns STANAG 4609 KLV and MAVLink v2 telemetry stream status."""
+    return stanag_mavlink.get_interop_status()
+
+
+@app.get("/api/v1/radar/ppi")
+async def get_radar_ppi():
+    """Returns 2D radar PPI sweep target azimuth, distance, and threat matrix data."""
+    pipeline = get_pipeline()
+    tracks = pipeline.active_tracks.tracks
+    vectors = [intercept_calculator.compute_intercept(tr) for tr in tracks]
+    return {
+        "sweep_angle_deg": round((time.time() * 90.0) % 360.0, 1),
+        "target_count": len(vectors),
+        "radar_targets": vectors,
+    }
+
+
 @app.websocket("/ws/telemetry")
+
 
 
 async def telemetry_websocket(websocket: WebSocket) -> None:
