@@ -5,7 +5,7 @@ Abstract base class for object detection plugins.
 
 Design:
 - Inherits PluginBase to integrate with PluginLoader and PluginRegistry.
-- Wraps an InferenceEngine instance for model execution.
+- Wraps an InferenceEngine instance or Ultralytics YOLO model for execution.
 - Standardizes pre-processing (letterbox scaling, normalization) and post-processing (NMS, coordinate scaling).
 - Emits Detection objects aligned with Frame metadata.
 """
@@ -35,7 +35,8 @@ class DetectorBase(PluginBase, abc.ABC):
     def __init__(self) -> None:
         super().__init__()
         self.engine: Optional[InferenceEngine] = None
-        self.conf_threshold: float = 0.45
+        self._yolo: Any = None
+        self.conf_threshold: float = 0.35
         self.nms_threshold: float = 0.45
         self.input_size: tuple[int, int] = (640, 640)
         self.class_names: list[str] = []
@@ -60,18 +61,31 @@ class DetectorBase(PluginBase, abc.ABC):
         """Convert raw network output tensors into Detection contracts."""
 
     async def load(self, config: dict, hw_profile: HWProfile) -> None:
-        """Initialize detector configuration and load backend InferenceEngine."""
+        """Initialize detector configuration and load backend InferenceEngine or YOLO neural network."""
         self.config = config
         self.hw_profile = hw_profile
         self.conf_threshold = float(config.get("confidence_threshold", self.conf_threshold))
         self.nms_threshold = float(config.get("nms_iou_threshold", self.nms_threshold))
 
         model_path = config.get("model_path", "")
+        use_real_ai = config.get("use_real_ai", False)
+
         if not model_path:
-            # Synthetic / Mock detector fallback for testing
-            log.info("detector_using_mock_fallback", plugin=self.metadata.name)
+            if use_real_ai:
+                # Auto-load Ultralytics YOLO model for real-time live vision inference
+                try:
+                    from ultralytics import YOLO
+                    log.info("loading_realtime_yolo_model", model="yolov8n.pt")
+                    self._yolo = YOLO("yolov8n.pt")
+                except Exception as exc:
+                    log.warning("ultralytics_yolo_load_failed", error=str(exc))
+                    self._yolo = None
+            else:
+                self._yolo = None
+
             self._set_status(PluginStatus.ACTIVE)
             return
+
 
         precision = config.get("fp_precision", hw_profile.capabilities.recommended_fp_precision)
         self.engine = EngineFactory.create(model_path, hw_profile, preferred_precision=precision)
@@ -81,32 +95,58 @@ class DetectorBase(PluginBase, abc.ABC):
         """Unload detector model and free engine resources."""
         self._set_status(PluginStatus.UNLOADED)
         self.engine = None
+        self._yolo = None
 
     def detect(self, frame: Frame) -> list[Detection]:
-        """Run end-to-end detection on a Frame."""
+        """Run end-to-end real-time neural detection on a Frame."""
         if not self.is_active:
             raise RuntimeError(f"Detector {self.metadata.name} is not active.")
 
         t0 = time.perf_counter()
 
-        if self.engine is None or not self.engine.is_loaded:
-            # Return synthetic test detection if no backend model is loaded
-            return self._generate_mock_detections(frame)
+        # 1. Real Ultralytics Neural Object Detector
+        if self._yolo is not None:
+            results = self._yolo.predict(frame.data, conf=self.conf_threshold, verbose=False)
+            detections: list[Detection] = []
+            if results and len(results) > 0:
+                for box in results[0].boxes:
+                    x1, y1, x2, y2 = box.xyxy[0].tolist()
+                    score = float(box.conf[0])
+                    cls_id = int(box.cls[0])
+                    cls_name = self._yolo.names.get(cls_id, f"class_{cls_id}") if hasattr(self._yolo, "names") else f"class_{cls_id}"
 
-        blob, scale, pad = self._preprocess(frame)
-        raw_outputs = self.engine.infer(blob)
-        detections = self._postprocess(raw_outputs, frame, scale, pad)
+                    det = Detection(
+                        bbox=BoundingBox(x1, y1, x2, y2),
+                        confidence=score,
+                        class_id=cls_id,
+                        class_name=cls_name,
+                        camera_id=frame.metadata.camera_id,
+                        detector_id=self.metadata.name,
+                        frame_timestamp=frame.timestamp,
+                    )
+                    detections.append(det)
 
-        elapsed_ms = (time.perf_counter() - t0) * 1000.0
-        self._detect_count += 1
-        self._total_infer_time_ms += elapsed_ms
+            elapsed_ms = (time.perf_counter() - t0) * 1000.0
+            self._detect_count += 1
+            self._total_infer_time_ms += elapsed_ms
+            return detections
 
-        return detections
+        # 2. Custom Engine Factory Model
+        if self.engine is not None and self.engine.is_loaded:
+            blob, scale, pad = self._preprocess(frame)
+            raw_outputs = self.engine.infer(blob)
+            detections = self._postprocess(raw_outputs, frame, scale, pad)
+            elapsed_ms = (time.perf_counter() - t0) * 1000.0
+            self._detect_count += 1
+            self._total_infer_time_ms += elapsed_ms
+            return detections
+
+        # 3. Fallback for testing environment
+        return self._generate_mock_detections(frame)
 
     def _generate_mock_detections(self, frame: Frame) -> list[Detection]:
-        """Generate test detection bounding box for synthetic verification."""
+        """Generate test detection bounding box for synthetic unit tests."""
         h, w = frame.hw
-        # Center target
         cx, cy = w / 2, h / 2
         bw, bh = 80, 80
         bbox = BoundingBox(cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2)
