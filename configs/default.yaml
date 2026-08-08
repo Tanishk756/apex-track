@@ -21,9 +21,7 @@ detector:
   plugin: rtdetr               # High-precision neural detector
   model_name: yolov8x.pt
   use_real_ai: true
-  confidence_threshold: 0.50
-
-
+  confidence_threshold: 0.55
 
   nms_iou_threshold: 0.45
   max_detections: 300
@@ -33,13 +31,14 @@ detector:
 
 tracker:
   plugin: bytetrack
-  min_hits: 3
-  max_misses: 30
-  iou_threshold: 0.3
-  track_high_thresh: 0.6
-  track_low_thresh: 0.1
-  match_thresh: 0.8
+  min_hits: 2
+  max_misses: 90
+  iou_threshold: 0.25
+  track_high_thresh: 0.55
+  track_low_thresh: 0.15
+  match_thresh: 0.70
   reid_enabled: false
+
 
 scheduler:
   detect_every: 3

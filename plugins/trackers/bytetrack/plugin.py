@@ -48,13 +48,17 @@ class SingleByteTrack:
 
     def update(self, det: Detection) -> None:
         self.mean, self.covariance = self.kf.update(self.mean, self.covariance, self.kf.bbox_to_z(det.bbox))
+        if det.confidence >= self.confidence * 0.9:
+            self.class_name = det.class_name
+            self.class_id = det.class_id
         self.confidence = det.confidence
         self.hits += 1
         self.misses = 0
-        if self.state == TrackState.TENTATIVE and self.hits >= 3:
+        if self.state == TrackState.TENTATIVE and self.hits >= 2:
             self.state = TrackState.CONFIRMED
         elif self.state == TrackState.COASTING:
             self.state = TrackState.CONFIRMED
+
 
     @property
     def current_bbox(self) -> BoundingBox:

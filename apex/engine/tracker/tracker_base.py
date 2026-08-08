@@ -48,7 +48,8 @@ class TrackerBase(PluginBase, abc.ABC):
         self.track_low_thresh = float(config.get("track_low_thresh", self.track_low_thresh))
         self.new_track_thresh = float(config.get("new_track_thresh", self.new_track_thresh))
         self.match_thresh = float(config.get("match_thresh", self.match_thresh))
-        self.max_time_lost = int(config.get("max_time_lost", self.max_time_lost))
+        self.max_time_lost = int(config.get("max_misses", config.get("max_time_lost", 90)))
+
         self.min_hits = int(config.get("min_hits", self.min_hits))
 
         self._set_status(PluginStatus.ACTIVE)

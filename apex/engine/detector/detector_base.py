@@ -31,11 +31,18 @@ log = structlog.get_logger(__name__)
 IGNORED_CLUTTER_CLASSES = {
     "bed", "bench", "parking meter", "toilet", "chair", "potted plant", "couch",
     "sofa", "sink", "refrigerator", "microwave", "oven", "toaster", "dining table",
-    "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush", "book", "tv"
+    "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush", "book", "tv",
+    "suitcase", "kite", "airplane", "umbrella", "backpack", "handbag", "tie", "sports ball"
+}
+
+VALID_TARGET_CLASSES = {
+    "car", "truck", "bus", "motorcycle", "person", "drone", "airplane", "boat",
+    "train", "bicycle", "vehicle", "keyboard", "mouse", "cell phone", "laptop", "monitor"
 }
 
 
 class DetectorBase(PluginBase, abc.ABC):
+
 
     """Abstract base class for object detector plugins."""
 
@@ -124,6 +131,7 @@ class DetectorBase(PluginBase, abc.ABC):
 
         # 1. Real Ultralytics Neural Object Detector
         if self._yolo is not None:
+
             results = self._yolo.predict(frame.data, conf=self.conf_threshold, verbose=False)
             detections: list[Detection] = []
             if results and len(results) > 0:
@@ -133,9 +141,9 @@ class DetectorBase(PluginBase, abc.ABC):
                     cls_id = int(box.cls[0])
                     cls_name = self._yolo.names.get(cls_id, f"class_{cls_id}") if hasattr(self._yolo, "names") else f"class_{cls_id}"
 
-                    # Clean class label names for clear display
-                    raw_cls = str(cls_name).lower()
-                    if raw_cls in IGNORED_CLUTTER_CLASSES:
+                    raw_cls = str(cls_name).lower().strip()
+                    # Filter out non-tactical clutter and non-target classes
+                    if raw_cls in IGNORED_CLUTTER_CLASSES or raw_cls not in VALID_TARGET_CLASSES:
                         continue
                     if raw_cls == "tv":
                         cls_name = "monitor"
@@ -150,6 +158,7 @@ class DetectorBase(PluginBase, abc.ABC):
                         frame_timestamp=frame.timestamp,
                     )
                     detections.append(det)
+
 
 
             elapsed_ms = (time.perf_counter() - t0) * 1000.0
