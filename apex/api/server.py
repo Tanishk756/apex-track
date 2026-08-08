@@ -131,8 +131,12 @@ async def camera_pipeline_worker():
     cfg_mgr = ConfigManager.instance()
     config = cfg_mgr.load(hw_profile_name=hw.profile_name)
 
+    # Initialize detector and tracker plugins to active state
+    await pipeline.initialize(config.model_dump(), hw)
+
     camera_src = os.environ.get("APEX_CAMERA_SOURCE") or config.camera_manager.cameras[0].source
     camera_plug = os.environ.get("APEX_CAMERA_PLUGIN") or config.camera_manager.cameras[0].plugin
+
 
     log.info("starting_camera_worker", source=camera_src, plugin=camera_plug)
 
