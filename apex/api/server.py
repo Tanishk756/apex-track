@@ -152,7 +152,11 @@ async def camera_pipeline_worker():
         "fps": 30,
     }
 
-    connected = await camera_instance._connect()
+    try:
+        connected = await asyncio.wait_for(camera_instance._connect(), timeout=3.0)
+    except Exception:
+        connected = False
+
     if not connected:
         log.warning("camera_connection_failed", source=camera_src)
         camera_status_msg = f"CAMERA DISCONNECTED ({camera_src})"
@@ -162,11 +166,16 @@ async def camera_pipeline_worker():
         try:
             if not connected or camera_instance._cap is None or not camera_instance._cap.isOpened():
                 camera_status_msg = f"CONNECTING TO {camera_src}..."
-                connected = await camera_instance._connect()
+                try:
+                    connected = await asyncio.wait_for(camera_instance._connect(), timeout=3.0)
+                except Exception:
+                    connected = False
+
                 if not connected:
                     latest_jpeg_bytes = create_synthetic_frame(f"CONNECTING TO {camera_src}...")
                     await asyncio.sleep(1.0)
                     continue
+
 
             res = await camera_instance._grab_frame()
             if res is None:

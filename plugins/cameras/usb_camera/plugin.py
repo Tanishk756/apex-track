@@ -3,10 +3,12 @@ USB / V4L2 Camera Plugin
 ========================
 OpenCV-based USB / V4L2 camera capture plugin.
 Supports local webcam devices, USB capture cards, and standard V4L2 video nodes.
+Non-blocking execution using worker threads.
 """
 
 from __future__ import annotations
 
+import asyncio
 import time
 from typing import Any, Optional
 
@@ -36,8 +38,7 @@ class USBCameraPlugin(CameraPlugin):
         super().__init__(camera_id=camera_id)
         self._cap: Optional[cv2.VideoCapture] = None
 
-    async def _connect(self) -> bool:
-        src = self.config.get("source", "0")
+    def _open_capture_sync(self, src: Any) -> bool:
         try:
             device_idx = int(src)
         except ValueError:
@@ -47,7 +48,6 @@ class USBCameraPlugin(CameraPlugin):
         self._cap = cv2.VideoCapture(device_idx, cv2.CAP_V4L2 if isinstance(device_idx, int) else cv2.CAP_ANY)
 
         if not self._cap.isOpened():
-            # Retry without V4L2 flag
             self._cap = cv2.VideoCapture(device_idx)
 
         if not self._cap.isOpened():
@@ -66,7 +66,11 @@ class USBCameraPlugin(CameraPlugin):
         log.info("usb_camera_connected", camera_id=self.camera_id, width=width, height=height, fps=fps)
         return True
 
-    async def _grab_frame(self) -> Optional[tuple[np.ndarray, float]]:
+    async def _connect(self) -> bool:
+        src = self.config.get("source", "0")
+        return await asyncio.to_thread(self._open_capture_sync, src)
+
+    def _grab_frame_sync(self) -> Optional[tuple[np.ndarray, float]]:
         if self._cap is None or not self._cap.isOpened():
             return None
 
@@ -77,8 +81,14 @@ class USBCameraPlugin(CameraPlugin):
 
         return frame, ts
 
+    async def _grab_frame(self) -> Optional[tuple[np.ndarray, float]]:
+        if self._cap is None or not self._cap.isOpened():
+            return None
+        return await asyncio.to_thread(self._grab_frame_sync)
+
     async def _disconnect(self) -> None:
         if self._cap is not None:
-            self._cap.release()
+            cap = self._cap
             self._cap = None
+            await asyncio.to_thread(cap.release)
         log.info("usb_camera_disconnected", camera_id=self.camera_id)
