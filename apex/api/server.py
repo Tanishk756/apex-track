@@ -195,11 +195,15 @@ async def camera_pipeline_worker():
             )
 
             track_array = await pipeline.process_frame(frame_obj)
-            annotated = draw_hud_overlay(img, track_array.tracks)
 
-            _, jpeg = cv2.imencode(".jpg", annotated)
-            latest_jpeg_bytes = jpeg.tobytes()
+            def render_hud_bytes(raw_image, active_tracks):
+                annotated_img = draw_hud_overlay(raw_image, active_tracks)
+                _, encoded_buf = cv2.imencode(".jpg", annotated_img, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
+                return encoded_buf.tobytes()
+
+            latest_jpeg_bytes = await asyncio.to_thread(render_hud_bytes, img, track_array.tracks)
             camera_status_msg = "STREAM ACTIVE"
+
 
         except Exception as exc:
             log.error("camera_worker_error", error=str(exc))

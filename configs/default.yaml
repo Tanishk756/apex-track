@@ -18,10 +18,11 @@ hardware:
   cuda_streams: 2
 
 detector:
-  plugin: rtdetr               # Apache-2.0 primary detector
-  model_name: rtdetr-l.pt
+  plugin: rtdetr               # High-precision neural detector
+  model_name: yolov8x.pt
   use_real_ai: true
   confidence_threshold: 0.50
+
 
 
   nms_iou_threshold: 0.45

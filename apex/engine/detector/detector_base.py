@@ -81,19 +81,19 @@ class DetectorBase(PluginBase, abc.ABC):
 
         if not model_path:
             if use_real_ai:
-                # Auto-load SOTA RT-DETR Real-Time Detection Transformer model
+                # Auto-load flagship SOTA model (YOLOv8x / RT-DETR-x) for maximum detection precision
                 try:
                     from ultralytics import RTDETR, YOLO
-                    model_to_load = config.get("model_name", "rtdetr-l.pt")
+                    model_to_load = config.get("model_name", "yolov8x.pt")
                     if not str(model_to_load).endswith(".pt"):
-                        model_to_load = "rtdetr-l.pt"
-                    log.info("loading_realtime_rtdetr_transformer_model", model=model_to_load)
+                        model_to_load = "yolov8x.pt"
+                    log.info("loading_high_precision_ai_model", model=model_to_load)
                     if "rtdetr" in str(model_to_load).lower():
                         self._yolo = RTDETR(model_to_load)
                     else:
                         self._yolo = YOLO(model_to_load)
                 except Exception as exc:
-                    log.warning("ultralytics_rtdetr_load_failed_falling_back", error=str(exc))
+                    log.warning("ultralytics_model_load_failed_falling_back", error=str(exc))
                     try:
                         from ultralytics import YOLO
                         self._yolo = YOLO("yolov8s.pt")
@@ -104,7 +104,6 @@ class DetectorBase(PluginBase, abc.ABC):
 
             self._set_status(PluginStatus.ACTIVE)
             return
-
 
         precision = config.get("fp_precision", hw_profile.capabilities.recommended_fp_precision)
         self.engine = EngineFactory.create(model_path, hw_profile, preferred_precision=precision)
@@ -134,9 +133,12 @@ class DetectorBase(PluginBase, abc.ABC):
                     cls_id = int(box.cls[0])
                     cls_name = self._yolo.names.get(cls_id, f"class_{cls_id}") if hasattr(self._yolo, "names") else f"class_{cls_id}"
 
-                    # Filter out non-tactical indoor/furniture clutter classes
-                    if str(cls_name).lower() in IGNORED_CLUTTER_CLASSES:
+                    # Clean class label names for clear display
+                    raw_cls = str(cls_name).lower()
+                    if raw_cls in IGNORED_CLUTTER_CLASSES:
                         continue
+                    if raw_cls == "tv":
+                        cls_name = "monitor"
 
                     det = Detection(
                         bbox=BoundingBox(x1, y1, x2, y2),
@@ -148,6 +150,7 @@ class DetectorBase(PluginBase, abc.ABC):
                         frame_timestamp=frame.timestamp,
                     )
                     detections.append(det)
+
 
             elapsed_ms = (time.perf_counter() - t0) * 1000.0
             self._detect_count += 1
