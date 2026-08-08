@@ -19,9 +19,10 @@ hardware:
 
 detector:
   plugin: rtdetr               # Apache-2.0 primary detector
-  model_name: rtdetr_r50vd_coco
+  model_name: rtdetr-l.pt
   use_real_ai: true
-  confidence_threshold: 0.45
+  confidence_threshold: 0.50
+
 
   nms_iou_threshold: 0.45
   max_detections: 300

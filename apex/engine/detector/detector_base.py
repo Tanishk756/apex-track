@@ -81,18 +81,22 @@ class DetectorBase(PluginBase, abc.ABC):
 
         if not model_path:
             if use_real_ai:
-                # Auto-load high-precision Ultralytics YOLO model for real-time live vision inference
+                # Auto-load SOTA RT-DETR Real-Time Detection Transformer model
                 try:
-                    from ultralytics import YOLO
-                    model_to_load = config.get("model_name", "yolov8s.pt")
+                    from ultralytics import RTDETR, YOLO
+                    model_to_load = config.get("model_name", "rtdetr-l.pt")
                     if not str(model_to_load).endswith(".pt"):
-                        model_to_load = "yolov8s.pt"
-                    log.info("loading_realtime_yolo_model", model=model_to_load)
-                    self._yolo = YOLO(model_to_load)
+                        model_to_load = "rtdetr-l.pt"
+                    log.info("loading_realtime_rtdetr_transformer_model", model=model_to_load)
+                    if "rtdetr" in str(model_to_load).lower():
+                        self._yolo = RTDETR(model_to_load)
+                    else:
+                        self._yolo = YOLO(model_to_load)
                 except Exception as exc:
-                    log.warning("ultralytics_yolo_load_failed_falling_back", error=str(exc))
+                    log.warning("ultralytics_rtdetr_load_failed_falling_back", error=str(exc))
                     try:
-                        self._yolo = YOLO("yolov8n.pt")
+                        from ultralytics import YOLO
+                        self._yolo = YOLO("yolov8s.pt")
                     except Exception:
                         self._yolo = None
             else:
@@ -100,6 +104,7 @@ class DetectorBase(PluginBase, abc.ABC):
 
             self._set_status(PluginStatus.ACTIVE)
             return
+
 
         precision = config.get("fp_precision", hw_profile.capabilities.recommended_fp_precision)
         self.engine = EngineFactory.create(model_path, hw_profile, preferred_precision=precision)
