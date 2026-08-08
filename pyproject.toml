@@ -89,5 +89,6 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-addopts = "-v --tb=short -p no:launch_testing"
+addopts = "-v --tb=short -p no:launch_testing -p no:launch_testing_ros"
+
 
