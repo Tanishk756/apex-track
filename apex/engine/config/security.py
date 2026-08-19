@@ -25,7 +25,7 @@ except ImportError:
 
 
 def mask_key(key: str, visible_prefix_len: int = 6) -> str:
-    """Masks API keys e.g. 'sk-proj-kbAxo...' -> 'sk-proj-***MASKED***'."""
+    """Masks API keys e.g. 'sk-proj-abc...' -> 'sk-proj-***MASKED***'."""
     if not key:
         return "NOT_CONFIGURED"
     if len(key) <= visible_prefix_len:
