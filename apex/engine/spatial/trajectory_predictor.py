@@ -8,7 +8,7 @@ for active targets based on 2nd-order polynomial kinematic state modeling.
 from __future__ import annotations
 
 import math
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 import numpy as np
 
 from apex.engine.contracts.track import Track
@@ -53,7 +53,6 @@ class TrajectoryPredictor:
 
             if len(history) >= 3:
                 # 2nd order acceleration estimation
-                pts = np.array([(p[0], p[1]) for p in history])
                 times = np.array([p[2] - history[0][2] for p in history])
 
                 if times[-1] > 0.001:

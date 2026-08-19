@@ -65,13 +65,69 @@ def ros2_command(args: argparse.Namespace) -> None:
         print("[INFO] ROS2 rclpy environment detected. Initializing ROS2 Perception Node...")
         adapter = ROS2DetectionNodeAdapter()
         print("[SUCCESS] ROS2 Node Adapter active. Subscribed to /camera/image_raw.")
+        _ = adapter
     except ImportError:
         print("[NOTICE] Standard rclpy bindings not active in current Python interpreter.")
         print("[INFO] Initializing ROS2 Standalone Adapter Mode...")
         from ros2.nodes.detection_node import ROS2DetectionNodeAdapter
         adapter = ROS2DetectionNodeAdapter()
         print("[SUCCESS] ROS2 Standalone Perception Adapter initialized successfully.")
+        _ = adapter
 
+
+
+def train_command(args: argparse.Namespace) -> None:
+    """Execute model fine-tuning."""
+    from tools.dataset_manager import DatasetManager
+    from tools.train_detector import TacticalModelTrainer
+
+    ds_mgr = DatasetManager.instance()
+    yaml_path = args.data
+    if not yaml_path:
+        ds_res = ds_mgr.synthesize_dataset(dataset_name=args.dataset, num_samples=args.samples)
+        yaml_path = ds_res["data_yaml"]
+        print(f"[SUCCESS] Synthesized dataset '{args.dataset}' ({args.samples} samples): {yaml_path}")
+
+    trainer = TacticalModelTrainer()
+    print(f"===========================================================")
+    print(f"  APEX-Track Neural Model Fine-Tuning Engine")
+    print(f"  Dataset YAML:  {yaml_path}")
+    print(f"  Backbone:      {args.backbone}")
+    print(f"  Epochs:        {args.epochs} | Batch Size: {args.batch_size}")
+    print(f"  Device:        {args.device}")
+    print(f"===========================================================")
+
+    res = trainer.train_model(
+        dataset_yaml=yaml_path,
+        backbone=args.backbone,
+        epochs=args.epochs,
+        batch_size=args.batch_size,
+        imgsz=args.imgsz,
+        device=args.device,
+        output_name=args.output,
+    )
+    print(f"[RESULT] Training {res.get('status')}: mAP50 = {res.get('mAP50')} | Saved to: {res.get('weights_saved')}")
+
+
+def dataset_command(args: argparse.Namespace) -> None:
+    """Manage and synthesize datasets."""
+    from tools.dataset_manager import DatasetManager
+    ds_mgr = DatasetManager.instance()
+
+    if args.action == "list":
+        catalog = ds_mgr.list_datasets()
+        print("===========================================================")
+        print("             APEX-Track Tactical Dataset Catalog           ")
+        print("===========================================================")
+        for ds in catalog:
+            inst = "INSTALLED" if ds["installed"] else "AVAILABLE"
+            print(f" - {ds['name']:<22} [{inst}] | Samples: {ds['sample_count']} | Classes: {', '.join(ds['classes'])}")
+            print(f"   {ds['description']}")
+        print("===========================================================")
+    elif args.action == "synthesize":
+        res = ds_mgr.synthesize_dataset(dataset_name=args.name, num_samples=args.count)
+        print(f"[SUCCESS] Synthesized dataset '{args.name}' with {args.count} samples.")
+        print(f" Data YAML: {res['data_yaml']}")
 
 
 def info_command(args: argparse.Namespace) -> None:
@@ -109,7 +165,25 @@ def main() -> None:
     serve_parser.add_argument("--reload", action="store_true", help="Enable auto-reload for dev")
     serve_parser.set_defaults(func=serve_command)
 
+    # train command
+    train_parser = subparsers.add_parser("train", help="Fine-tune neural object detector")
+    train_parser.add_argument("--dataset", type=str, default="aod_4", choices=["drone_uav", "aod_4", "battlefield_vehicles", "thermal_ir", "coco_defense"], help="Preset dataset name")
+    train_parser.add_argument("--data", type=str, default=None, help="Custom dataset data.yaml path")
+    train_parser.add_argument("--backbone", type=str, default="yolov8s.pt", help="Pre-trained backbone weights file")
+    train_parser.add_argument("--epochs", type=int, default=3, help="Number of training epochs")
+    train_parser.add_argument("--batch-size", type=int, default=8, help="Batch size")
+    train_parser.add_argument("--imgsz", type=int, default=640, help="Inference resolution")
+    train_parser.add_argument("--device", type=str, default="0", help="Device ID (0 for cuda:0 or cpu)")
+    train_parser.add_argument("--samples", type=int, default=100, help="Number of synthetic samples if generating")
+    train_parser.add_argument("--output", type=str, default="apex_tactical_v12.pt", help="Output checkpoint file name")
+    train_parser.set_defaults(func=train_command)
 
+    # dataset command
+    dataset_parser = subparsers.add_parser("dataset", help="Manage and synthesize datasets")
+    dataset_parser.add_argument("action", choices=["list", "synthesize"], help="Dataset action")
+    dataset_parser.add_argument("--name", type=str, default="drone_uav", help="Dataset name")
+    dataset_parser.add_argument("--count", type=int, default=100, help="Number of synthetic samples to render")
+    dataset_parser.set_defaults(func=dataset_command)
 
     # bench command
     bench_parser = subparsers.add_parser("bench", help="Run Latency and FPS Benchmarks")
@@ -139,3 +213,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

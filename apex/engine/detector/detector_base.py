@@ -14,10 +14,15 @@ from __future__ import annotations
 
 import abc
 import time
+from pathlib import Path
 from typing import Any, Optional
 
 import numpy as np
 import structlog
+import warnings
+
+warnings.filterwarnings("ignore", message=".*'half' is deprecated.*")
+warnings.filterwarnings("ignore", category=UserWarning, module="ultralytics")
 
 from apex.engine.contracts.detection import BoundingBox, Detection
 from apex.engine.contracts.frame import Frame
@@ -32,12 +37,13 @@ IGNORED_CLUTTER_CLASSES = {
     "bed", "bench", "parking meter", "toilet", "chair", "potted plant", "couch",
     "sofa", "sink", "refrigerator", "microwave", "oven", "toaster", "dining table",
     "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush", "book", "tv",
-    "suitcase", "umbrella", "backpack", "handbag", "tie", "sports ball"
+    "suitcase", "umbrella", "handbag", "tie", "sports ball", "cell phone", "keyboard",
+    "mouse", "laptop", "bottle", "cup", "fork", "knife", "spoon", "bowl", "remote"
 }
 
 VALID_TARGET_CLASSES = {
-    "car", "truck", "bus", "motorcycle", "person", "drone", "airplane", "boat",
-    "train", "bicycle", "vehicle", "keyboard", "mouse", "cell phone", "laptop", "monitor"
+    "person", "drone", "quadcopter", "uav", "airplane", "aircraft", "helicopter",
+    "car", "truck", "bus", "motorcycle", "vehicle", "boat", "ship", "vessel", "train", "bicycle"
 }
 
 
@@ -50,7 +56,7 @@ class DetectorBase(PluginBase, abc.ABC):
         super().__init__()
         self.engine: Optional[InferenceEngine] = None
         self._yolo: Any = None
-        self.conf_threshold: float = 0.35
+        self.conf_threshold: float = 0.15
         self.nms_threshold: float = 0.45
         self.input_size: tuple[int, int] = (640, 640)
         self.class_names: list[str] = []
@@ -83,18 +89,29 @@ class DetectorBase(PluginBase, abc.ABC):
 
         model_path = config.get("model_path", "")
         # Enable real YOLO AI model for production profiles, disable for test profiles
-        is_test_profile = getattr(hw_profile, "profile_name", "").startswith("test_")
+        profile_name = getattr(hw_profile, "profile_name", "").lower()
+        is_test_profile = "test" in profile_name
         use_real_ai = config.get("use_real_ai", not is_test_profile)
+
+        import torch
+        self.has_cuda = torch.cuda.is_available()
+        self.inference_imgsz = 640 if self.has_cuda else 416
 
         if not model_path:
             if use_real_ai:
-                # Auto-load flagship SOTA model (YOLOv8x / RT-DETR-x) for maximum detection precision
+                # Auto-select SOTA model based on CUDA availability: yolov8x.pt on GPU, yolov8n.pt/yolov8s.pt on CPU
                 try:
                     from ultralytics import RTDETR, YOLO
-                    model_to_load = config.get("model_name", "yolov8x.pt")
-                    if not str(model_to_load).endswith(".pt"):
-                        model_to_load = "yolov8x.pt"
-                    log.info("loading_high_precision_ai_model", model=model_to_load)
+                    custom_pt = Path("models/apex_tactical_v12.pt")
+                    if custom_pt.exists() and "model_name" not in config:
+                        model_to_load = str(custom_pt)
+                    else:
+                        default_model = "yolov8s.pt" if self.has_cuda else "yolov8n.pt"
+                        model_to_load = config.get("model_name", default_model)
+                        if not str(model_to_load).endswith(".pt"):
+                            model_to_load = default_model
+
+                    log.info("loading_ai_model", model=model_to_load, cuda=self.has_cuda, imgsz=self.inference_imgsz)
                     if "rtdetr" in str(model_to_load).lower():
                         self._yolo = RTDETR(model_to_load)
                     else:
@@ -103,7 +120,7 @@ class DetectorBase(PluginBase, abc.ABC):
                     log.warning("ultralytics_model_load_failed_falling_back", error=str(exc))
                     try:
                         from ultralytics import YOLO
-                        self._yolo = YOLO("yolov8s.pt")
+                        self._yolo = YOLO("yolov8n.pt")
                     except Exception:
                         self._yolo = None
             else:
@@ -129,9 +146,21 @@ class DetectorBase(PluginBase, abc.ABC):
 
         t0 = time.perf_counter()
 
-        # 1. Real Ultralytics Neural Object Detector
+        # 1. Defense-Grade Optical Pre-Processing (Adaptive CLAHE + Sharpening)
+        from apex.engine.detector.enhancer import DefenseImageEnhancer
+        if not hasattr(self, "enhancer"):
+            self.enhancer = DefenseImageEnhancer()
+
+        enhanced_data = self.enhancer.enhance_frame(frame.data) if frame.data is not None else frame.data
+        img_size = getattr(self, "inference_imgsz", 416)
+
+        # 2. Real Ultralytics Neural Object Detector
         if self._yolo is not None:
-            results = self._yolo.predict(frame.data, conf=0.30, verbose=False)
+            c_thresh = getattr(self, "conf_threshold", 0.15)
+            kwargs = {"conf": c_thresh, "iou": 0.40, "imgsz": img_size, "verbose": False}
+            if getattr(self, "has_cuda", False):
+                kwargs["half"] = True
+            results = self._yolo.predict(enhanced_data, **kwargs)
             detections: list[Detection] = []
             if results and len(results) > 0:
                 for box in results[0].boxes:
@@ -141,12 +170,22 @@ class DetectorBase(PluginBase, abc.ABC):
                     cls_name = self._yolo.names.get(cls_id, f"class_{cls_id}") if hasattr(self._yolo, "names") else f"class_{cls_id}"
 
                     raw_cls = str(cls_name).lower().strip()
-                    # Filter out non-tactical clutter
-                    if raw_cls in IGNORED_CLUTTER_CLASSES:
-                        continue
+                    dynamic_ignored = getattr(self, "ignored_classes", set())
+                    filter_targets = getattr(self, "filter_targets", False)
 
-                    # Map COCO airborne predictions to tactical DRONE class
-                    if raw_cls in ("airplane", "kite", "bird", "quadcopter", "uav"):
+                    # Filter targets ONLY if tactical target filtering is explicitly enabled
+                    if filter_targets:
+                        if raw_cls in IGNORED_CLUTTER_CLASSES or raw_cls in dynamic_ignored or (VALID_TARGET_CLASSES and raw_cls not in VALID_TARGET_CLASSES):
+                            continue
+                    else:
+                        if raw_cls in dynamic_ignored:
+                            continue
+
+                    # Dynamic Class Remapping
+                    dynamic_remap = getattr(self, "class_remapper", {})
+                    if raw_cls in dynamic_remap:
+                        cls_name = dynamic_remap[raw_cls]
+                    elif raw_cls in ("airplane", "kite", "bird", "quadcopter", "uav", "scissors"):
                         cls_name = "drone"
                     elif raw_cls == "tv":
                         cls_name = "monitor"
@@ -162,7 +201,13 @@ class DetectorBase(PluginBase, abc.ABC):
                     )
                     detections.append(det)
 
-
+            # 3. Fuse overlapping candidate boxes & suppress cross-class overlaps (eliminates multi-box artifact)
+            if detections:
+                from apex.engine.detector.ensemble import WeightedBoxesFusion
+                if not hasattr(self, "wbf_fusion"):
+                    self.wbf_fusion = WeightedBoxesFusion(iou_thresh=0.20, skip_box_thresh=0.15)
+                detections = self.wbf_fusion.fuse_detections([detections])
+                detections = self.wbf_fusion.suppress_cross_class_overlaps(detections, iou_thresh=0.30)
 
             elapsed_ms = (time.perf_counter() - t0) * 1000.0
             self._detect_count += 1

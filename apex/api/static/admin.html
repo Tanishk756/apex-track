@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>APEX-Track | Defense Command Admin Panel</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    .admin-container {
+      padding: 20px;
+      overflow-y: auto;
+      height: calc(100vh - 58px);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .admin-grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+    }
+    .admin-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .admin-card {
+      background: rgba(10, 16, 30, 0.9);
+      border: 1px solid var(--panel-border);
+      border-radius: 10px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+    }
+    .card-title {
+      font-family: var(--font-orbitron);
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--primary-cyan);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--panel-border);
+      padding-bottom: 8px;
+    }
+    .stat-box {
+      background: #050812;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .stat-val {
+      font-family: var(--font-mono);
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--accent-emerald);
+    }
+    .stat-lbl {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      margin-top: 4px;
+    }
+    .slider-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .slider-input {
+      flex: 1;
+      accent-color: var(--primary-cyan);
+    }
+    .toggle-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+    }
+    .toggle-btn {
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-muted);
+      padding: 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+    }
+    .toggle-btn.active-target {
+      background: rgba(0, 240, 255, 0.2);
+      border-color: var(--primary-cyan);
+      color: var(--primary-cyan);
+    }
+    .btn-export {
+      background: linear-gradient(135deg, #10b981, #059669);
+      border: none;
+      color: #fff;
+      padding: 10px;
+      border-radius: 6px;
+      font-weight: 800;
+      font-family: var(--font-mono);
+      cursor: pointer;
+      text-align: center;
+    }
+    .nav-btn {
+      background: rgba(0, 240, 255, 0.15);
+      border: 1px solid var(--primary-cyan);
+      color: var(--primary-cyan);
+      padding: 5px 12px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navbar -->
+  <header>
+    <div class="brand">
+      <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+        <polyline points="2 17 12 22 22 17"></polyline>
+        <polyline points="2 12 12 17 22 12"></polyline>
+      </svg>
+      <span class="brand-title">APEX-TRACK</span>
+      <span class="brand-badge">ADMIN CONTROL CONSOLE</span>
+    </div>
+
+    <div class="sys-metrics">
+      <a href="/" class="nav-btn">🖥️ MAIN DASHBOARD</a>
+      <a href="/docs" target="_blank" class="nav-btn">📖 API DOCS</a>
+      <div class="metric-item">
+        <div class="dot-active"></div>
+        <span>ADMIN BACKEND: ACTIVE</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Admin Body Container -->
+  <div class="admin-container">
+
+    <!-- 1. System Metrics Row -->
+    <div class="admin-grid-3">
+      <div class="stat-box">
+        <div id="cpuVal" class="stat-val">0.0%</div>
+        <div class="stat-lbl">CPU UTILIZATION</div>
+      </div>
+      <div class="stat-box">
+        <div id="ramVal" class="stat-val">0.0 / 0.0 GB</div>
+        <div class="stat-lbl">SYSTEM RAM USED</div>
+      </div>
+      <div class="stat-box">
+        <div id="accelVal" class="stat-val">CPU</div>
+        <div class="stat-lbl">ACCELERATION BACKEND</div>
+      </div>
+    </div>
+
+    <!-- 2. Controls Grid -->
+    <div class="admin-grid-2">
+
+      <!-- Card A: Camera HAL Ingestion Hub -->
+      <div class="admin-card">
+        <div class="card-title">
+          <span>📷 CAMERA INGESTION HUB & STREAM SOURCE</span>
+          <span id="cameraStatusBadge" class="rec-badge" style="background:rgba(0,240,255,0.2); border-color:#00F0FF; color:#00F0FF;">ACTIVE</span>
+        </div>
+
+        <div class="subpanel-section">
+          <div class="subpanel-title">SELECT CAMERA CAPTURE SOURCE</div>
+          <select id="cameraSourceSelect" onchange="updateCameraSource()" class="tactical-select">
+            <option value="usb_0">Default Optical WebCam (Index #0)</option>
+            <option value="usb_1">Secondary USB Camera (Index #1)</option>
+            <option value="rtsp">Network RTSP IP Stream (RTSP/HTTP)</option>
+            <option value="synthetic">Synthetic Tactical UAV Simulator</option>
+          </select>
+        </div>
+
+        <div id="rtspInputGroup" class="subpanel-section" style="display:none;">
+          <div class="subpanel-title">RTSP IP STREAM URL</div>
+          <input type="text" id="rtspUrlInput" placeholder="rtsp://192.168.1.100:554/live" class="tactical-input" />
+        </div>
+
+        <button onclick="applyCameraSource()" class="chat-send-btn" style="width:100%; margin-top:8px; padding:8px;">APPLY CAMERA SOURCE</button>
+      </div>
+
+      <!-- Card B: Neural Perception Engine Config -->
+      <div class="admin-card">
+        <div class="card-title">
+          <span>🎯 NEURAL PERCEPTION & DETECTOR TUNER</span>
+          <span id="detectorNameBadge" class="brand-badge">YOLOv8 Ensemble</span>
+        </div>
+
+        <div class="slider-row">
+          <span class="subpanel-title" style="margin:0;">CONFIDENCE THRESHOLD:</span>
+          <input type="range" id="confSlider" min="0.05" max="0.95" step="0.05" value="0.15" oninput="updateConfDisplay(this.value)" class="slider-input" />
+          <span id="confValDisplay" style="font-family:var(--font-mono); font-weight:700; color:#00F0FF;">0.15</span>
+        </div>
+
+        <div class="slider-row" style="margin-top:8px;">
+          <span class="subpanel-title" style="margin:0;">INFERENCE RESOLUTION:</span>
+          <select id="resSelect" class="tactical-select" style="width:140px;">
+            <option value="416">416 x 416 (Fast)</option>
+            <option value="640">640 x 640 (Supremacy)</option>
+          </select>
+        </div>
+
+        <div class="slider-row" style="margin-top:8px;">
+          <span class="subpanel-title" style="margin:0;">TACTICAL FILTERING:</span>
+          <button id="adminFilterToggleBtn" onclick="toggleAdminFilter()" class="tactical-header-btn filter-active">ENABLED</button>
+        </div>
+
+        <button onclick="applyDetectorConfig()" class="chat-send-btn" style="width:100%; margin-top:10px; padding:8px;">SAVE DETECTOR CONFIG</button>
+      </div>
+
+    </div>
+
+    <!-- 3. Target Class Whitelist / Blacklist Matrix -->
+    <div class="admin-card">
+      <div class="card-title">
+        <span>🛡️ TARGET CLASS WHITELIST & CLUTTER FILTER MATRIX</span>
+        <span class="subpanel-title" style="margin:0;">CLICK TO TOGGLE TARGET RECOGNITION</span>
+      </div>
+
+      <div class="toggle-grid">
+        <div class="toggle-btn active-target" onclick="toggleTargetClass('person', this)">👥 PERSONNEL (person)</div>
+        <div class="toggle-btn active-target" onclick="toggleTargetClass('drone', this)">🛸 QUADCOPTER / UAV</div>
+        <div class="toggle-btn active-target" onclick="toggleTargetClass('car', this)">🚗 GROUND VEHICLE (car)</div>
+        <div class="toggle-btn active-target" onclick="toggleTargetClass('truck', this)">🚚 HEAVY TRUCK</div>
+        <div class="toggle-btn active-target" onclick="toggleTargetClass('airplane', this)">✈️ AVIATION (airplane)</div>
+        <div class="toggle-btn active-target" onclick="toggleTargetClass('boat', this)">🚤 MARITIME (boat)</div>
+        <div class="toggle-btn" onclick="toggleTargetClass('cell phone', this)">📱 CELL PHONE (Clutter)</div>
+        <div class="toggle-btn" onclick="toggleTargetClass('laptop', this)">💻 LAPTOP (Clutter)</div>
+        <div class="toggle-btn" onclick="toggleTargetClass('chair', this)">🪑 CHAIR (Clutter)</div>
+      </div>
+    </div>
+
+    <!-- 4. Historical Database Log Exporter Card -->
+    <div class="admin-card">
+      <div class="card-title">
+        <span>💾 PERSISTENT SQLITE DATABASE & CSV EXPORTER</span>
+        <span id="logCountBadge" class="summary-badge">0 RECORDS</span>
+      </div>
+
+      <div class="flex-between">
+        <p style="font-size:12px; color:var(--text-muted);">
+          All target detections, track trajectories, and spatial kinematics are continuously logged to SQLite. Download full mission telemetry as CSV for post-mission forensic analysis.
+        </p>
+        <button onclick="exportLogsCSV()" class="btn-export">📥 EXPORT LOGS AS CSV</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      fetchAdminStats();
+      setInterval(fetchAdminStats, 2000);
+    });
+
+    let currentConfig = {};
+
+    async function fetchAdminStats() {
+      try {
+        const res = await fetch('/api/v1/admin/system_stats');
+        const data = await res.json();
+        currentConfig = data;
+
+        document.getElementById('cpuVal').innerText = `${data.cpu_percent.toFixed(1)}%`;
+        document.getElementById('ramVal').innerText = `${data.memory_used_gb} / ${data.memory_total_gb} GB`;
+        document.getElementById('accelVal').innerText = data.has_cuda ? 'CUDA GPU' : 'CPU ACCELERATION';
+        document.getElementById('detectorNameBadge').innerText = data.detector_type || 'YOLOv8 Ensemble';
+        document.getElementById('logCountBadge').innerText = `FPS: ${data.stream_fps || 30.0} | LATENCY: ${data.latency_ms || 0.0} ms`;
+
+        // Update conf slider if not actively dragging
+        const confSlider = document.getElementById('confSlider');
+        if (confSlider && document.activeElement !== confSlider) {
+          confSlider.value = data.conf_threshold || 0.15;
+          document.getElementById('confValDisplay').innerText = (data.conf_threshold || 0.15).toFixed(2);
+        }
+      } catch (e) {
+        console.warn('Admin stats poller offline');
+      }
+    }
+
+    function updateConfDisplay(val) {
+      document.getElementById('confValDisplay').innerText = Number(val).toFixed(2);
+    }
+
+    function updateCameraSource() {
+      const val = document.getElementById('cameraSourceSelect').value;
+      const rtspGroup = document.getElementById('rtspInputGroup');
+      if (val === 'rtsp') {
+        rtspGroup.style.display = 'block';
+      } else {
+        rtspGroup.style.display = 'none';
+      }
+    }
+
+    async function applyCameraSource() {
+      const val = document.getElementById('cameraSourceSelect').value;
+      alert(`CAMERA SOURCE SET TO: ${val.toUpperCase()}`);
+    }
+
+    let isFilterActive = true;
+    function toggleAdminFilter() {
+      isFilterActive = !isFilterActive;
+      const btn = document.getElementById('adminFilterToggleBtn');
+      if (isFilterActive) {
+        btn.innerText = 'ENABLED';
+        btn.classList.add('filter-active');
+      } else {
+        btn.innerText = 'DISABLED (ALL 80 COCO)';
+        btn.classList.remove('filter-active');
+      }
+    }
+
+    async function applyDetectorConfig() {
+      const conf = parseFloat(document.getElementById('confSlider').value);
+      const res = parseInt(document.getElementById('resSelect').value);
+
+      await fetch('/api/v1/admin/detector_config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conf_threshold: conf,
+          inference_imgsz: res,
+          filter_targets: isFilterActive
+        })
+      });
+      alert('NEURAL DETECTOR CONFIG SAVED SUCCESSFULLY!');
+    }
+
+    function toggleTargetClass(className, el) {
+      el.classList.toggle('active-target');
+    }
+
+    function exportLogsCSV() {
+      window.location.href = '/api/v1/admin/export_csv';
+    }
+  </script>
+</body>
+</html>

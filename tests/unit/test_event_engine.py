@@ -69,6 +69,7 @@ class TestEventEngine:
         await engine.emit(make_event(EventType.CAMERA_CONNECTED))
         await asyncio.sleep(0.01)
         t1 = time.time()
+        assert t0 < t1
         await engine.emit(make_event(EventType.TARGET_DETECTED))
         after_t1 = engine.events_since(t1)
         assert len(after_t1) == 1

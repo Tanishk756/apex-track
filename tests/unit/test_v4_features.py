@@ -32,7 +32,8 @@ def create_mock_track(tid: int, cx: float, cy: float, cls_name: str = "drone") -
 def test_rf_detr_2xl_plugin():
     plugin = RFDetr2XLPlugin()
     assert plugin.metadata.name == "rf_detr_2xl"
-    assert plugin.model_name == "rtdetr-l.pt"
+    assert plugin.model_name == "rfdetr-2xl"
+    assert "PML-1.0" in plugin.metadata.license
 
 
 def test_intercept_calculator():

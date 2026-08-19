@@ -65,15 +65,15 @@ class DetectorConfig(BaseModel):
 class TrackerConfig(BaseModel):
     plugin: str = "bytetrack"
     """Name of the tracker plugin."""
-    min_hits: int = 3
+    min_hits: int = 1
     """Frames before a TENTATIVE track becomes CONFIRMED."""
     max_misses: int = 30
     """Frames of no detection before a CONFIRMED track becomes LOST."""
     iou_threshold: float = 0.3
-    track_high_thresh: float = 0.6   # ByteTrack: high-score detection threshold
+    track_high_thresh: float = 0.20   # ByteTrack: high-score detection threshold
     track_low_thresh: float = 0.1    # ByteTrack: low-score association threshold
     match_thresh: float = 0.8
-    reid_enabled: bool = False
+    reid_enabled: bool = True
     """Enable Re-ID appearance embedding (BoT-SORT / StrongSORT)."""
 
 

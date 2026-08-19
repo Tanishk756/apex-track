@@ -125,6 +125,7 @@ class CameraPlugin(PluginBase, abc.ABC):
                         extra={
                             "exposure_ms": float(self.config.get("exposure_ms", 0.0)),
                             "gain": float(self.config.get("gain", 0.0)),
+                            "channels": channels,
                         },
                     )
                     frame = Frame(

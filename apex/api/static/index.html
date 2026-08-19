@@ -3,42 +3,58 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>APEX-Track | Defense C4ISR Tactical Command Dashboard</title>
+  <title>APEX-Track | Defense C4ISR Master Apex Platform</title>
   <link rel="stylesheet" href="/static/styles.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
   <!-- Top Header Navigation Bar -->
   <header>
     <div class="brand">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
         <polyline points="2 17 12 22 22 17"></polyline>
         <polyline points="2 12 12 17 22 12"></polyline>
       </svg>
-      <span>APEX-TRACK</span>
-      <span class="brand-badge">C4ISR PERCEPTION V5.0 MASTER ENTERPRISE</span>
+      <span class="brand-title">APEX-TRACK</span>
+      <span class="brand-badge">v15.0 MASTER APEX EDITION</span>
+      <a href="/admin" class="tactical-header-btn" style="text-decoration:none; background:rgba(0, 240, 255, 0.2); border-color:#00F0FF; color:#00F0FF;">⚙️ ADMIN CONSOLE</a>
     </div>
 
     <div class="sys-metrics">
+      <div class="metric-item">
+        <button id="filterModeBtn" onclick="toggleTargetFilter()" class="tactical-header-btn filter-active">🎯 TACTICAL ISR MODE</button>
+      </div>
+      <div class="metric-item">
+        <button id="precisionBtn" onclick="togglePrecisionMode()" class="tactical-header-btn precision-active">⚡ HIGH-SPEED (60 FPS)</button>
+      </div>
+      <div class="metric-item">
+        <span id="defconBadge" class="defcon-badge defcon-5">DEFCON 5 - NORMAL</span>
+      </div>
+      <div class="metric-item">
+        <button id="voiceToggleBtn" onclick="toggleVoiceSynth()" class="tactical-header-btn">🔊 AUDIO: ON</button>
+      </div>
+      <div class="metric-item">
+        <button id="inspectionToggleBtn" onclick="toggleInspectionHUD()" class="tactical-header-btn hud-active">🔍 INSPECTION HUD</button>
+      </div>
+      <div class="metric-item">
+        <span id="weatherBadge" style="font-family:var(--font-mono); font-size:11px; font-weight:700; color:#10B981;">🌤️ CLEAR | 24.5°C | 3.5m/s</span>
+      </div>
       <div class="metric-item">
         <div class="dot-active"></div>
         <span>ENGINE: ONLINE</span>
       </div>
       <div class="metric-item">
-        <span>STANAG 4609: <strong style="color:var(--accent-emerald);">STREAMING</strong></span>
+        <span>CONSENSUS: <strong class="text-emerald">99.9%</strong></span>
       </div>
       <div class="metric-item">
-        <span>MAVLink v2: <strong style="color:var(--primary-cyan);">50 Hz</strong></span>
+        <span>FPS: <strong id="fpsCounter" class="text-emerald">30.0</strong></span>
       </div>
       <div class="metric-item">
-        <span>FPS: <strong id="fpsCounter" style="color:var(--accent-emerald);">350.0</strong></span>
-      </div>
-      <div class="metric-item">
-        <span>LATENCY: <strong style="color:var(--primary-cyan);">0.45 ms</strong></span>
+        <span>LATENCY: <strong id="latencyCounter" class="text-cyan">0.0 ms</strong></span>
       </div>
     </div>
   </header>
@@ -47,23 +63,27 @@
   <main class="dashboard-grid">
 
     <!-- 1. Live Video Feed Panel (Top Left) -->
-    <div class="glass-panel">
+    <div class="glass-panel video-panel">
       <div class="panel-header">
-        <span>PRIMARY EO/IR OPTICAL FEED — STREAM #01</span>
-        <span>REC: ACTIVE</span>
+        <div class="feed-title">
+          <span class="pulse-icon">●</span> PRIMARY EO/IR OPTICAL FEED — STREAM #01
+        </div>
+        <div class="feed-tools">
+          <span class="rec-badge">REC: ACTIVE</span>
+          <button class="small-btn" onclick="takeSnapshot()">📸 SNAPSHOT</button>
+        </div>
       </div>
-      <div class="panel-content" style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #000; overflow: hidden;">
-        <img id="liveVideoFeed" src="/video_feed" alt="Live Optical Camera Feed" style="width: 100%; height: 100%; object-fit: contain; position: absolute; top:0; left:0; z-index: 1;" />
-        <canvas id="hudCanvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none;"></canvas>
+      <div class="panel-content video-content">
+        <img id="liveVideoFeed" src="/video_feed" alt="Live Optical Camera Feed" class="video-stream" />
+        <canvas id="hudCanvas" class="hud-canvas"></canvas>
       </div>
-
     </div>
 
     <!-- 2. Tactical Radar Sweeper (Top Right) -->
-    <div class="glass-panel">
+    <div class="glass-panel radar-panel">
       <div class="panel-header">
-        <span>SPATIAL RADAR TRACKER</span>
-        <span>RANGE: 5.0 KM</span>
+        <span>SPATIAL RADAR & KINEMATICS TRACKER</span>
+        <span class="range-text">RANGE: 5.0 KM</span>
       </div>
       <div class="panel-content radar-container">
         <canvas id="radarCanvas"></canvas>
@@ -71,10 +91,12 @@
     </div>
 
     <!-- 3. Target List & Threat Scores (Bottom Left) -->
-    <div class="glass-panel">
-      <div class="panel-header">
-        <span>ACTIVE TARGET REGISTRY</span>
-        <span>DB: SQLITE PERSISTENT</span>
+    <div class="glass-panel target-panel">
+      <div class="panel-header flex-between">
+        <span>ACTIVE TARGET REGISTRY (STANAG 4586)</span>
+        <div class="btn-group">
+          <button onclick="openHistoryModal()" class="action-btn">📋 HISTORICAL LOGS</button>
+        </div>
       </div>
       <div class="panel-content table-wrapper">
         <table>
@@ -95,39 +117,97 @@
       </div>
     </div>
 
+    <!-- Historical Detection Database Modal -->
+    <div id="historyModal" class="modal-overlay">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="flex-align gap-12">
+            <span class="modal-title">🗃️ PERSISTENT HISTORICAL DETECTION LOG DATABASE</span>
+            <span id="historySummaryBadge" class="summary-badge">LOADING...</span>
+          </div>
+          <button onclick="closeHistoryModal()" class="close-btn">✕</button>
+        </div>
+
+        <!-- Filter Controls Bar -->
+        <div class="modal-filter-bar">
+          <input type="text" id="historyTrackIdFilter" placeholder="Filter by Track ID (#)" oninput="filterHistoryLogs()" class="tactical-input" />
+          <input type="text" id="historyClassFilter" placeholder="Filter by Object Class" oninput="filterHistoryLogs()" class="tactical-input" />
+          <button onclick="fetchHistoryLogs()" class="action-btn">REFRESH LOGS</button>
+        </div>
+
+        <div class="modal-body">
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>TIMESTAMP</th>
+                <th>UID</th>
+                <th>CLASS</th>
+                <th>STATE</th>
+                <th>SPEED</th>
+                <th>BOUNDING BOX</th>
+              </tr>
+            </thead>
+            <tbody id="historyTableBody">
+              <!-- Dynamic Rows -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <!-- 4. Tactical Mission Control Panel (Bottom Right) -->
-    <div class="glass-panel">
+    <div class="glass-panel control-panel">
       <div class="panel-header">
-        <span>RUNTIME MISSION PROFILES</span>
+        <span>RUNTIME MISSION & OPTICAL PROFILES</span>
         <span>SELECT PROFILE</span>
       </div>
       <div class="panel-content">
         <div class="mission-controls">
-          <button class="mission-btn active" onclick="setMission('road_vehicles')">ROAD SURVEILLANCE</button>
+          <button class="mission-btn active" onclick="setMission('road_vehicles')">SURVEILLANCE</button>
           <button class="mission-btn" onclick="setMission('drone_tracking')">COUNTER-UAS</button>
           <button class="mission-btn" onclick="setMission('battlefield')">BATTLEFIELD</button>
         </div>
 
-        <div style="margin-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 10px;">
-          <div style="font-size: 11px; color: #94a3b8; font-weight: 600; margin-bottom: 6px;">MULTI-SPECTRAL THERMAL PALETTE</div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
-            <button class="mission-btn active" onclick="setVisionMode('EO')">EO DAYLIGHT</button>
-            <button class="mission-btn" onclick="setVisionMode('FLIR_IRONBOW')">FLIR IRONBOW</button>
-            <button class="mission-btn" onclick="setVisionMode('FLIR_WHITE_HOT')">IR WHITE HOT</button>
-            <button class="mission-btn" onclick="setVisionMode('NVG_GREEN')">NVG GREEN</button>
+        <div class="subpanel-section">
+          <div class="subpanel-title">MULTI-SPECTRAL THERMAL PALETTE</div>
+          <div class="grid-2col">
+            <button class="vision-btn active" onclick="setVisionMode('EO')">EO DAYLIGHT</button>
+            <button class="vision-btn" onclick="setVisionMode('FLIR_IRONBOW')">FLIR IRONBOW</button>
+            <button class="vision-btn" onclick="setVisionMode('FLIR_WHITE_HOT')">IR WHITE HOT</button>
+            <button class="vision-btn" onclick="setVisionMode('NVG_GREEN')">NVG GREEN</button>
           </div>
         </div>
 
-        <div style="margin-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 8px;">
-          <div style="font-size: 11px; color: #94a3b8; font-weight: 600; margin-bottom: 4px;">ROBOFLOW VISION AI MODEL</div>
-          <select id="roboflowSelect" onchange="switchRoboflowModel(this.value)" style="width: 100%; background: #0f172a; border: 1px solid #334155; color: #06b6d4; padding: 6px; border-radius: 4px; font-size: 12px; font-weight: 600;">
+        <div class="subpanel-section">
+          <div class="subpanel-title">ROBOFLOW VISION AI MODEL</div>
+          <select id="roboflowSelect" onchange="switchRoboflowModel(this.value)" class="tactical-select">
             <option value="ensemble_wbf">Ensemble Defense Matrix (WBF Consensus)</option>
             <option value="rf-detr-2xl">RF-DETR 2XL Ultra-Precision Transformer</option>
             <option value="coco_standard">COCO YOLOv8x High-Precision</option>
             <option value="uav-detection/3">Roboflow UAV Tactical Counter-UAS</option>
-            <option value="drone-dataset-uav/2">Roboflow Fixed-Wing & Micro-UAV</option>
             <option value="military-vehicles/1">Roboflow Military Ground Vehicles</option>
           </select>
+        </div>
+
+        <!-- AI Copilot Chat Integration -->
+        <div class="subpanel-section">
+          <div class="subpanel-header">
+            <span>🤖 TACTICAL AI COPILOT (RAG)</span>
+            <span class="text-emerald">ONLINE</span>
+          </div>
+          <div id="copilotChatBox" class="copilot-chat">
+            <div class="chat-msg">[COPILOT]: APEX-Track v15.0 Master Apex Ready. Multi-spectral perception online.</div>
+          </div>
+          <div class="chips-container">
+            <button onclick="sendQuickChip('Audit history')" class="chip-btn chip-cyan">Audit</button>
+            <button onclick="sendQuickChip('Threat matrix')" class="chip-btn chip-red">Threats</button>
+            <button onclick="sendQuickChip('Calculate intercept')" class="chip-btn chip-amber">Intercept</button>
+            <button onclick="sendQuickChip('REMIND Re-ID memory status')" class="chip-btn chip-emerald">REMIND</button>
+          </div>
+          <div class="chat-input-row">
+            <input type="text" id="copilotInput" placeholder="Ask Copilot anything..." onkeydown="if(event.key==='Enter') sendCopilotPrompt()" class="chat-input" />
+            <button onclick="sendCopilotPrompt()" class="chat-send-btn">SEND</button>
+          </div>
         </div>
 
       </div>
@@ -137,10 +217,57 @@
 
   <script src="/static/app.js"></script>
   <script>
+    let isSupremacyMode = false;
+    let isTacticalFilter = true;
+
+    async function toggleTargetFilter() {
+      isTacticalFilter = !isTacticalFilter;
+      const btn = document.getElementById('filterModeBtn');
+      if (isTacticalFilter) {
+        btn.innerText = '🎯 TACTICAL ISR MODE';
+        btn.classList.add('filter-active');
+      } else {
+        btn.innerText = '🌐 UNIVERSAL MODE (ALL 80 COCO)';
+        btn.classList.remove('filter-active');
+      }
+
+      await fetch('/api/v1/config/filter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filter_targets: isTacticalFilter })
+      });
+    }
+
+    async function togglePrecisionMode() {
+      isSupremacyMode = !isSupremacyMode;
+      const btn = document.getElementById('precisionBtn');
+      const mode = isSupremacyMode ? 'precision' : 'fast';
+      
+      if (isSupremacyMode) {
+        btn.innerText = '🎯 SUPREMACY (640p)';
+        btn.classList.add('supremacy-active');
+      } else {
+        btn.innerText = '⚡ HIGH-SPEED (60 FPS)';
+        btn.classList.remove('supremacy-active');
+      }
+
+      await fetch('/api/v1/config/precision', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: mode, conf_threshold: 0.50 })
+      });
+    }
+
     async function setMission(name) {
       document.querySelectorAll('.mission-btn').forEach(btn => btn.classList.remove('active'));
       event.target.classList.add('active');
       await fetch(`/api/v1/missions/switch?profile_name=${name}`, { method: 'POST' });
+    }
+
+    async function setVisionMode(mode) {
+      document.querySelectorAll('.vision-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+      await fetch(`/api/v1/vision/mode?mode=${mode}`, { method: 'POST' });
     }
   </script>
 </body>

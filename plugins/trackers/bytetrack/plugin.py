@@ -54,7 +54,7 @@ class SingleByteTrack:
         self.confidence = det.confidence
         self.hits += 1
         self.misses = 0
-        if self.state == TrackState.TENTATIVE and self.hits >= 2:
+        if self.state == TrackState.TENTATIVE and self.hits >= 1:
             self.state = TrackState.CONFIRMED
         elif self.state == TrackState.COASTING:
             self.state = TrackState.CONFIRMED
@@ -106,8 +106,14 @@ class ByteTrackPlugin(TrackerBase):
             self.tracked_objects, det_high, self.match_thresh
         )
 
+        from apex.engine.tracker.reid_db import PersistentReIDDatabase
+        reid_db = PersistentReIDDatabase.instance()
+
         for track_idx, det_idx in matched_1:
-            self.tracked_objects[track_idx].update(det_high[det_idx])
+            det = det_high[det_idx]
+            track = self.tracked_objects[track_idx]
+            track.update(det)
+            reid_db.update_feature_for_uid(track.track_id, frame.data if frame else None, det.bbox)
 
         # 3. Stage 2 Association: Unmatched active tracks vs Low-confidence detections
         rem_tracks = [self.tracked_objects[i] for i in unmatched_tracks_1]
@@ -116,7 +122,10 @@ class ByteTrackPlugin(TrackerBase):
         )
 
         for rel_track_idx, det_idx in matched_2:
-            rem_tracks[rel_track_idx].update(det_low[det_idx])
+            det = det_low[det_idx]
+            track = rem_tracks[rel_track_idx]
+            track.update(det)
+            reid_db.update_feature_for_uid(track.track_id, frame.data if frame else None, det.bbox)
 
         # Mark un-matched tracks as COASTING / LOST / DELETED
         final_unmatched = [rem_tracks[i] for i in unmatched_tracks_2]
@@ -126,38 +135,49 @@ class ByteTrackPlugin(TrackerBase):
             else:
                 track.state = TrackState.COASTING
 
-        # 4. Initiate new tentative tracks from unmatched high-confidence detections
+        # 4. Initiate new tentative tracks from unmatched high-confidence detections (preventing duplicate UIDs)
+        existing_uids = {t.track_id for t in self.tracked_objects if t.state != TrackState.DELETED}
         for i in unmatched_dets_1:
             det = det_high[i]
             if det.confidence >= self.new_track_thresh:
-                new_t = SingleByteTrack(self._get_next_id(), det, self.kf)
-                self.tracked_objects.append(new_t)
+                # Query Persistent Re-ID database to recover previous UID or assign new UID
+                persistent_uid, is_reid = reid_db.match_or_create_uid(
+                    frame.data if frame else None, det.bbox, det.class_name
+                )
+                if persistent_uid not in existing_uids:
+                    new_t = SingleByteTrack(persistent_uid, det, self.kf)
+                    self.tracked_objects.append(new_t)
+                    existing_uids.add(persistent_uid)
 
-        # Purge deleted tracks
-        self.tracked_objects = [t for t in self.tracked_objects if t.state != TrackState.DELETED]
+        # Purge deleted tracks and deduplicate by track_id (guarantees 1 bounding box per target)
+        unique_tracks_map: dict[int, SingleByteTrack] = {}
+        for t in self.tracked_objects:
+            if t.state != TrackState.DELETED:
+                if t.track_id not in unique_tracks_map or t.confidence > unique_tracks_map[t.track_id].confidence:
+                    unique_tracks_map[t.track_id] = t
+        self.tracked_objects = list(unique_tracks_map.values())
 
         # Convert to Track contract objects for message bus output
         output_tracks: list[Track] = []
         for t in self.tracked_objects:
-            if t.state != TrackState.DELETED:
-                # Calculate pixel velocity from Kalman state vector
-                vx, vy = float(t.mean[4]), float(t.mean[5])
-                tr = Track(
-                    track_id=t.track_id,
-                    state=t.state,
-                    bbox=t.current_bbox,
-                    predicted_bbox=t.predict_next_bbox(),
-                    confidence=t.confidence,
-                    class_id=t.class_id,
-                    class_name=t.class_name,
-                    frame_timestamp=frame.timestamp,
-                    camera_id=frame.metadata.camera_id,
-                    velocity_px=(vx, vy),
-                    age_frames=t.age,
-                    hits=t.hits,
-                    misses=t.misses,
-                )
-                output_tracks.append(tr)
+            # Calculate pixel velocity from Kalman state vector
+            vx, vy = float(t.mean[4]), float(t.mean[5])
+            tr = Track(
+                track_id=t.track_id,
+                state=t.state,
+                bbox=t.current_bbox,
+                predicted_bbox=t.predict_next_bbox(),
+                confidence=t.confidence,
+                class_id=t.class_id,
+                class_name=t.class_name,
+                frame_timestamp=frame.timestamp,
+                camera_id=frame.metadata.camera_id,
+                velocity_px=(vx, vy),
+                age_frames=t.age,
+                hits=t.hits,
+                misses=t.misses,
+            )
+            output_tracks.append(tr)
 
         return output_tracks
 

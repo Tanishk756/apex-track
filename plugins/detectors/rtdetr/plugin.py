@@ -7,6 +7,7 @@ Primary commercial-grade detector choice for APEX-Track platform.
 
 from __future__ import annotations
 
+from typing import Any
 import cv2
 import numpy as np
 import structlog

@@ -59,6 +59,7 @@ async def main(num_frames: int) -> None:
     print(f"Throughput:    {fps:.2f} FPS")
     print(f"p50 Latency:   {p50:.3f} ms")
     print(f"p95 Latency:   {p95:.3f} ms")
+    print(f"Final Tracks:  {len(track_array.tracks)}")
     print("==========================")
 
 

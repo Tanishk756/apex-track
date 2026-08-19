@@ -1,67 +1,56 @@
 # APEX-Track Architecture Specification
 
-## System Overview
-APEX-Track is an industrial-grade, zero-latency AI perception and target tracking platform designed for UAV and autonomous defense operations. It provides high-speed multi-spectral object detection, velocity-adaptive target tracking (ByteTrack / BoT-SORT), spatial geofencing, and telemetry synchronization over ROS2 and FastAPI/WebSockets.
+## 1. System Overview
 
-```
-                  +-----------------------------------+
-                  |  Multi-Spectral Frame Ingestion   |
-                  |     (File / RTSP / USB Camera)    |
-                  +-----------------+-----------------+
-                                    |
-                                    v
-                  +-----------------+-----------------+
-                  | Hardware Abstraction Layer (HAL) |
-                  |    (HWProfile / Capabilities)     |
-                  +-----------------+-----------------+
-                                    |
-                                    v
-                  +-----------------+-----------------+
-                  |   Neural Detection & Ensemble    |
-                  |    (RT-DETR / RTMDet / YOLO11)    |
-                  +-----------------+-----------------+
-                                    |
-                                    v
-                  +-----------------+-----------------+
-                  |    Adaptive Multi-Target Tracker  |
-                  |      (ByteTrack / BoT-SORT CMC)   |
-                  +-----------------+-----------------+
-                                    |
-                                    v
-                  +-----------------+-----------------+
-                  |    Spatial Engine & Target DB     |
-                  |  (3D Projection / Geofencing)    |
-                  +--------+----------------+---------+
-                           |                |
-                           v                v
-         +-----------------+--+   +---------+-----------------+
-         | ROS2 Node Adapter  |   | FastAPI Operational Server|
-         | (apex_track_ros)   |   | (C4ISR Glassmorphic UI)   |
-         +--------------------+   +---------------------------+
+APEX-Track is an industrial-grade, zero-latency AI perception, object identification, target tracking, telemetry fusion, and situational-awareness platform. It is engineered for heterogeneous execution across high-performance desktop GPUs, NVIDIA Jetson Orin NX, Raspberry Pi 5 edge devices, simulated environments, and distributed multi-machine nodes.
+
+The core platform remains technology-agnostic: detectors, trackers, sensors, cameras, telemetry transports, storage backends, and UI clients exist behind clean, strongly-typed domain interfaces.
+
+```mermaid
+graph TD
+    A[Frame Ingestion Hub] --> B[Hardware Abstraction Layer HAL]
+    B --> C[Neural Detector Registry / RF-DETR 2XL]
+    C --> D[Data Association & Track Engine]
+    D --> E[10-State UKF Motion Estimator]
+    E --> F[Sensor Fusion & Spatial Engine]
+    F --> G[Event Engine & Mission State Machine]
+    G --> H[Telemetry & STANAG / MAVLink Transports]
+    G --> I[FastAPI / WebSockets & ROS 2 Adapters]
 ```
 
-## Key Subsystems
+---
 
-### 1. Hardware Abstraction Layer (HAL)
-- **Capability Model**: Feature flags query capabilities (e.g., `Capability.CUDA`, `Capability.TENSORRT`, `Capability.FP16`), decoupling code from specific GPU names or SBC platforms.
-- **Hardware Profile**: Automatically detects available compute backends, thread counts, RAM limits, and optimal inference precision.
+## 2. Key Subsystems & Layers
 
-### 2. Neural Detection & Inference Engine
-- **Pluggable Architecture**: Modular loading of open-source neural detectors (RT-DETR, RTMDet, YOLOv11).
-- **Ensemble Detector**: Weighted Non-Maximum Suppression (NMS) for multi-model decision fusion.
-- **Engine Factory**: Dynamic fallback strategy across TensorRT, ONNX Runtime (CUDA/CPU), and PyTorch.
+### 2.1 Domain Layer (`apex.engine.contracts`)
+- **Strict Data Contracts**: `Frame`, `Detection`, `BoundingBox`, `Track`, `Telemetry`, `Event`, and `Command`.
+- **Zero-Vendor-Leakage**: Domain contracts do not import OpenCV, PyTorch, TensorRT, ROS 2, or MAVLink types.
 
-### 3. Adaptive Multi-Target Tracker
-- **ByteTrack**: High-throughput target identification and motion association.
-- **BoT-SORT CMC**: Camera Motion Compensation for high-speed pitch/yaw UAV maneuvers.
-- **Constant Acceleration Kalman Filter**: 9-state state vector tracking position, velocity, and acceleration.
+### 2.2 Runtime & Event System
+- **Message Bus (`apex.engine.bus`)**: Typed async pub/sub bus with fnmatch wildcard channel filtering, queue backpressure handling, and non-blocking worker queues.
+- **Global State Machine (`apex.engine.state`)**: Lifecycle transitions (`BOOTING`, `INITIALIZING`, `READY`, `RUNNING`, `DEGRADED`, `PAUSED`, `RECONFIGURING`, `ERROR`, `SHUTTING_DOWN`, `STOPPED`).
+- **Event Engine (`apex.engine.events`)**: Severity-graded event publishing with correlation IDs and rolling audit logs.
 
-### 4. Spatial Engine & Geofencing
-- **3D World Projection**: Maps 2D pixel coordinates to 3D spatial points based on sensor telemetry.
-- **Geofence Engine**: Real-time evaluation of perimeter breaches, target arrival/departure events, and threat score updates.
-- **Target Registry**: In-memory database with history tracking and state persistence.
+### 2.3 Hardware Abstraction Layer (`apex.engine.hal`)
+- **Capability Model**: Discovers CPU cores, RAM limits, CUDA availability, VRAM, TensorRT support, and recommended precision (`fp16`/`fp32`).
+- **Hardware Profiles**: Pre-tuned capability profiles for Desktop RTX, Jetson Orin NX, Raspberry Pi 5, and CPU-only environments.
 
-### 5. API & C4ISR Command Console
-- **FastAPI Backend**: Operational REST API endpoints (`/api/v1/health`, `/api/v1/targets`, `/api/v1/missions/switch`).
-- **WebSocket Streaming**: 30 Hz live target HUD position and spatial telemetry feed.
-- **Glassmorphic Tactical Dashboard**: High-contrast UI featuring live video reticle, radar sweep, target registry, and mission selector.
+### 2.4 Perception Engine
+- **Detector Abstraction & Registry**: Pluggable detector interface. Primary high-accuracy detector: **RF-DETR 2XL** (with PML-1.0 license compliance validation), alongside RT-DETR, RTMDet, and YOLOv11 options.
+- **Tracker Abstraction**: Modular tracking engine supporting ByteTrack and BoT-SORT Camera Motion Compensation (CMC).
+- **10-State Unscented Kalman Filter (UKF)**: Dedicated 10-state state estimation (`x, y, z, vx, vy, vz, ax, ay, az, turn_rate`) decoupling motion state estimation from detection and data association.
+
+### 2.5 Telemetry & Connectivity
+- **Transport Adapters**: MAVLink UDP (e.g. `udp:0.0.0.0:14550`), STANAG 4609 metadata stream parser, ROS 2 node adapter (`apex_track_ros`), and WebSocket 30 Hz streaming server.
+
+### 2.6 Spatial Analytics & Mission Management
+- **3D World Coordinate Projection**: Sensor geometry transformation mapping 2D pixel observations to 3D world coordinates.
+- **Geofence Engine**: Automated 3D breach detection, threat matrix scoring, and mission lifecycle management.
+- **Black-Box Recorder**: Asynchronous JSONL event logging and raw/HUD video recording.
+
+---
+
+## 3. License & Compliance Architecture
+- Core system code: **Apache 2.0**
+- RF-DETR 2XL weights & model extensions: **PML-1.0** (requires explicit license acceptance flag `accept_pml1_license=True`)
+- AGPL plugins (e.g. Ultralytics YOLOv11): Gated by `accept_agpl_plugins=True` setting.

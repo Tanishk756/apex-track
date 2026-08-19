@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import Optional
+from typing import Any, Optional
 
 import structlog
 
@@ -57,6 +57,8 @@ class CameraManager:
 
         self._cameras: dict[str, CameraPlugin] = {}
         self._camera_configs: dict[str, dict] = {}
+        self._frame_queues: dict[str, asyncio.Queue] = {}
+        self._max_queue_size = 30
         self._synchronizer: Optional[FrameSynchronizer] = None
         self._sync_tolerance_ms = sync_tolerance_ms
         self._health_check_task: Optional[asyncio.Task] = None
@@ -181,6 +183,30 @@ class CameraManager:
                 break
             except Exception as exc:
                 log.warning("camera_health_monitor_error", error=str(exc))
+
+    def push_frame(self, camera_id: str, frame: Any) -> bool:
+        """Push frame into camera bounded ring buffer queue with drop-oldest backpressure."""
+        if camera_id not in self._frame_queues:
+            self._frame_queues[camera_id] = asyncio.Queue(maxsize=self._max_queue_size)
+
+        queue = self._frame_queues[camera_id]
+        if queue.full():
+            try:
+                queue.get_nowait()
+            except asyncio.QueueEmpty:
+                pass
+        queue.put_nowait(frame)
+        return True
+
+    def get_latest_frame(self, camera_id: str) -> Optional[Any]:
+        """Fetch latest frame from camera queue without blocking."""
+        queue = self._frame_queues.get(camera_id)
+        if queue is None or queue.empty():
+            return None
+        try:
+            return queue.get_nowait()
+        except asyncio.QueueEmpty:
+            return None
 
     def get_camera(self, camera_id: str) -> Optional[CameraPlugin]:
         return self._cameras.get(camera_id)

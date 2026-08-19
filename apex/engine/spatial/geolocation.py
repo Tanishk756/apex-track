@@ -70,6 +70,13 @@ class WorldCoordinateSystem:
             [0, math.sin(pitch), math.cos(pitch)]
         ])
 
+        # Roll rotation matrix (around Y axis)
+        Ry = np.array([
+            [math.cos(roll), 0, math.sin(roll)],
+            [0, 1, 0],
+            [-math.sin(roll), 0, math.cos(roll)]
+        ])
+
         # Yaw rotation matrix (around Z axis)
         Rz = np.array([
             [math.cos(yaw), -math.sin(yaw), 0],
@@ -77,7 +84,7 @@ class WorldCoordinateSystem:
             [0, 0, 1]
         ])
 
-        R = np.dot(Rz, Rx)
+        R = np.dot(Rz, np.dot(Rx, Ry))
         ray_world = np.dot(R, ray_cam)
 
         # Ray-plane intersection with ground plane (z = 0)

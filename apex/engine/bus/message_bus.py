@@ -24,7 +24,7 @@ import time
 import weakref
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Callable, Coroutine
+from typing import Any, Callable, Coroutine, Optional
 
 import structlog
 
@@ -169,7 +169,16 @@ class MessageBus:
             while True:
                 try:
                     channel, msg = await sub._queue.get()
+                except asyncio.CancelledError:
+                    break
+                except Exception as exc:
+                    log.warning("bus_queue_error", pattern=pattern, error=str(exc))
+                    break
+
+                try:
                     await handler(channel, msg)
+                except asyncio.CancelledError:
+                    break
                 except Exception as exc:
                     log.warning("bus_handler_error", pattern=pattern, error=str(exc))
 

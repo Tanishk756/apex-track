@@ -111,6 +111,9 @@ class Detection:
     embedding: Optional[bytes] = None
     """Re-ID feature embedding (bytes-serialized float32 vector) for appearance matching."""
 
+    segmentation_mask: Optional[tuple[tuple[float, float], ...]] = None
+    """Polygon segmentation mask vertices normalized in [0, 1] relative to bounding box."""
+
     def __repr__(self) -> str:
         return (
             f"Detection({self.class_name!r} {self.confidence:.2f} "

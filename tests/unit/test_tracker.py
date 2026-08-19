@@ -55,6 +55,9 @@ class TestByteTrack:
 
     @pytest.mark.asyncio
     async def test_bytetrack_tracking_lifecycle(self, sample_frame):
+        from apex.engine.tracker.reid_db import PersistentReIDDatabase
+        PersistentReIDDatabase.instance().reset()
+
         tracker = ByteTrackPlugin()
         hw = HWProfile(capabilities=HWCapabilities(), profile_name="cpu_test")
         await tracker.load({"min_hits": 2}, hw)

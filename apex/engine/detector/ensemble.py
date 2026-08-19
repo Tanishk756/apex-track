@@ -1,109 +1,156 @@
 """
-Ensemble Detector
-=================
-Combines bounding box predictions from multiple detector plugins using Weighted NMS (W-NMS) / Soft-NMS.
-Enables high-confidence fusion across multi-model ensembles (e.g., RT-DETR + RTMDet).
+Weighted Boxes Fusion (WBF) Perception Ensemble Module
+=========================================================
+Fuses multi-scale bounding box predictions across neural passes and model ensembles,
+maximizing IoU overlap consensus and precision for low-contrast/high-speed tactical assets.
 """
 
 from __future__ import annotations
 
-from typing import Sequence
-
+from typing import List
 import numpy as np
 import structlog
 
 from apex.engine.contracts.detection import BoundingBox, Detection
-from apex.engine.contracts.frame import Frame
-from apex.engine.detector.detector_base import DetectorBase
 
 log = structlog.get_logger(__name__)
 
 
-class EnsembleDetector:
-    """Multi-model weighted NMS box fusion ensemble."""
+def compute_iou(b1: BoundingBox, b2: BoundingBox) -> float:
+    """Compute Intersection over Union (IoU) between two bounding boxes."""
+    x1 = max(b1.x1, b2.x1)
+    y1 = max(b1.y1, b2.y1)
+    x2 = min(b1.x2, b2.x2)
+    y2 = min(b1.y2, b2.y2)
 
-    def __init__(
-        self,
-        detectors: Sequence[DetectorBase],
-        weights: Sequence[float] | None = None,
-        iou_threshold: float = 0.5,
-        conf_threshold: float = 0.4,
-    ) -> None:
-        self.detectors = list(detectors)
-        self.weights = list(weights) if weights else [1.0] * len(detectors)
-        self.iou_threshold = iou_threshold
-        self.conf_threshold = conf_threshold
+    inter_area = max(0.0, x2 - x1) * max(0.0, y2 - y1)
+    b1_area = (b1.x2 - b1.x1) * (b1.y2 - b1.y1)
+    b2_area = (b2.x2 - b2.x1) * (b2.y2 - b2.y1)
 
-    def detect(self, frame: Frame) -> list[Detection]:
-        """Run all constituent detectors and merge predictions via Weighted NMS."""
-        all_detections: list[tuple[Detection, float]] = []
+    union_area = b1_area + b2_area - inter_area
+    if union_area <= 0:
+        return 0.0
+    return float(inter_area / union_area)
 
-        for det_engine, weight in zip(self.detectors, self.weights):
-            dets = det_engine.detect(frame)
-            for d in dets:
-                all_detections.append((d, weight))
 
-        if not all_detections:
+class WeightedBoxesFusion:
+    """Weighted Boxes Fusion engine for tactical multi-pass detection consensus."""
+
+    def __init__(self, iou_thresh: float = 0.55, skip_box_thresh: float = 0.20) -> None:
+        self.iou_thresh = iou_thresh
+        self.skip_box_thresh = skip_box_thresh
+
+    def fuse_detections(self, detection_lists: List[List[Detection]]) -> List[Detection]:
+        """
+        Fuses multiple lists of detections (from multiple passes or models)
+        using box confidence weighting.
+        """
+        all_dets = [d for dlist in detection_lists for d in dlist if d.confidence >= self.skip_box_thresh]
+        if not all_dets:
             return []
 
-        return self._weighted_nms(all_detections)
+        # Group by class_name
+        grouped_by_class: dict[str, List[Detection]] = {}
+        for det in all_dets:
+            grouped_by_class.setdefault(det.class_name, []).append(det)
 
-    def _weighted_nms(self, weighted_dets: list[tuple[Detection, float]]) -> list[Detection]:
-        """Apply weighted box fusion & NMS."""
-        if not weighted_dets:
-            return []
+        fused_results: List[Detection] = []
 
-        # Group detections by class_id
-        by_class: dict[int, list[tuple[Detection, float]]] = {}
-        for det, w in weighted_dets:
-            by_class.setdefault(det.class_id, []).append((det, w))
+        for class_name, dets in grouped_by_class.items():
+            # Sort descending by confidence
+            dets = sorted(dets, key=lambda x: x.confidence, reverse=True)
 
-        fused_detections: list[Detection] = []
+            clusters: List[List[Detection]] = []
 
-        for cls_id, group in by_class.items():
-            # Sort by weighted confidence score descending
-            group.sort(key=lambda x: x[0].confidence * x[1], reverse=True)
+            for det in dets:
+                matched_cluster = None
+                for cluster in clusters:
+                    # Compute average box in cluster
+                    avg_x1 = np.mean([d.bbox.x1 for d in cluster])
+                    avg_y1 = np.mean([d.bbox.y1 for d in cluster])
+                    avg_x2 = np.mean([d.bbox.x2 for d in cluster])
+                    avg_y2 = np.mean([d.bbox.y2 for d in cluster])
+                    cluster_bbox = BoundingBox(avg_x1, avg_y1, avg_x2, avg_y2)
 
-            used = [False] * len(group)
-            for i in range(len(group)):
-                if used[i]:
-                    continue
+                    if compute_iou(det.bbox, cluster_bbox) >= self.iou_thresh:
+                        matched_cluster = cluster
+                        break
 
-                det_i, w_i = group[i]
-                box_cluster = [(det_i, w_i)]
-                used[i] = True
+                if matched_cluster is not None:
+                    matched_cluster.append(det)
+                else:
+                    clusters.append([det])
 
-                for j in range(i + 1, len(group)):
-                    if used[j]:
-                        continue
-                    det_j, w_j = group[j]
-                    iou = det_i.bbox.iou(det_j.bbox)
-                    if iou >= self.iou_threshold:
-                        box_cluster.append((det_j, w_j))
-                        used[j] = True
+            # Merge clusters using confidence weighting
+            for cluster in clusters:
+                weights = np.array([d.confidence for d in cluster], dtype=np.float32)
+                sum_weights = float(np.sum(weights))
 
-                # Compute weighted average bounding box coordinates
-                total_w = sum(d.confidence * w for d, w in box_cluster)
-                avg_x1 = sum(d.bbox.x1 * d.confidence * w for d, w in box_cluster) / total_w
-                avg_y1 = sum(d.bbox.y1 * d.confidence * w for d, w in box_cluster) / total_w
-                avg_x2 = sum(d.bbox.x2 * d.confidence * w for d, w in box_cluster) / total_w
-                avg_y2 = sum(d.bbox.y2 * d.confidence * w for d, w in box_cluster) / total_w
+                weighted_x1 = float(np.sum([d.bbox.x1 * w for d, w in zip(cluster, weights)]) / sum_weights)
+                weighted_y1 = float(np.sum([d.bbox.y1 * w for d, w in zip(cluster, weights)]) / sum_weights)
+                weighted_x2 = float(np.sum([d.bbox.x2 * w for d, w in zip(cluster, weights)]) / sum_weights)
+                weighted_y2 = float(np.sum([d.bbox.y2 * w for d, w in zip(cluster, weights)]) / sum_weights)
 
-                # Average confidence weighted across cluster
-                avg_conf = min(1.0, total_w / sum(w for _, w in box_cluster))
+                # Consensus confidence score
+                max_conf = max(d.confidence for d in cluster)
+                consensus_bonus = min(0.15, 0.05 * (len(cluster) - 1))
+                final_conf = min(1.0, max_conf + consensus_bonus)
 
-                cam_id = box_cluster[0][0].camera_id
-                ts = box_cluster[0][0].frame_timestamp
-
+                base_det = cluster[0]
                 fused_det = Detection(
-                    bbox=BoundingBox(avg_x1, avg_y1, avg_x2, avg_y2),
-                    confidence=avg_conf,
-                    class_id=cls_id,
-                    class_name=det_i.class_name,
-                    camera_id=cam_id,
-                    detector_id="ensemble",
-                    frame_timestamp=ts,
+                    bbox=BoundingBox(weighted_x1, weighted_y1, weighted_x2, weighted_y2),
+                    confidence=float(final_conf),
+                    class_id=base_det.class_id,
+                    class_name=class_name,
+                    camera_id=base_det.camera_id,
+                    detector_id=f"wbf_ensemble({len(cluster)})",
+                    frame_timestamp=base_det.frame_timestamp,
                 )
-                fused_detections.append(fused_det)
+                fused_results.append(fused_det)
 
-        return fused_detections
+        # Cross-class spatial NMS to eliminate overlapping false positive categories on the same object
+        fused_sorted = sorted(fused_results, key=lambda x: x.confidence, reverse=True)
+        return self.suppress_cross_class_overlaps(fused_sorted, iou_thresh=self.iou_thresh)
+
+    def suppress_cross_class_overlaps(self, detections: List[Detection], iou_thresh: float = 0.35) -> List[Detection]:
+        """
+        Aggressive Spatial Non-Maximum Suppression.
+        - Same class: IoU >= 0.15 suppresses lower-confidence duplicate crops (e.g. hand/torso person duplicates).
+        - Cross class: IoU >= 0.35 suppresses lower-confidence false positive categories.
+        """
+        if not detections:
+            return []
+
+        sorted_dets = sorted(detections, key=lambda d: d.confidence, reverse=True)
+        kept_dets: List[Detection] = []
+
+        for det in sorted_dets:
+            overlap = False
+            for kept in kept_dets:
+                overlap_limit = 0.15 if det.class_name.lower() == kept.class_name.lower() else iou_thresh
+                if compute_iou(det.bbox, kept.bbox) >= overlap_limit:
+                    overlap = True
+                    break
+            if not overlap:
+                kept_dets.append(det)
+
+        return kept_dets
+
+
+class EnsembleDetector:
+    """Multi-model ensemble detector combining multiple detector plugins."""
+
+    def __init__(self, detectors: list, weights: list[float] | None = None, iou_threshold: float = 0.5) -> None:
+        self.detectors = detectors
+        self.weights = weights or [1.0] * len(detectors)
+        self.wbf = WeightedBoxesFusion(iou_thresh=iou_threshold)
+
+    def detect(self, frame) -> List[Detection]:
+        all_passes = []
+        for d in self.detectors:
+            try:
+                dets = d.detect(frame)
+                all_passes.append(dets)
+            except Exception as e:
+                log.warning("ensemble_sub_detector_failed", error=str(e))
+        return self.wbf.fuse_detections(all_passes)

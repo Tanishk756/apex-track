@@ -8,7 +8,7 @@ when critical ALPHA threats cross engagement parameters.
 from __future__ import annotations
 
 import time
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 import structlog
 
 log = structlog.get_logger(__name__)

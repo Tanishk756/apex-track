@@ -8,7 +8,7 @@ protocol streams (GLOBAL_POSITION_INT, ATTITUDE, VFR_HUD).
 from __future__ import annotations
 
 import time
-from typing import Dict, Any, Optional
+from typing import Dict, Any, List, Optional
 
 
 class MAVLinkStanagEngine:

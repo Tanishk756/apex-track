@@ -21,7 +21,7 @@ detector:
   plugin: rtdetr               # High-precision neural detector
   model_name: yolov8x.pt
   use_real_ai: true
-  confidence_threshold: 0.30
+  confidence_threshold: 0.15
 
   nms_iou_threshold: 0.45
   max_detections: 300
@@ -31,13 +31,13 @@ detector:
 
 tracker:
   plugin: bytetrack
-  min_hits: 2
+  min_hits: 1
   max_misses: 90
   iou_threshold: 0.25
-  track_high_thresh: 0.30
+  track_high_thresh: 0.20
   track_low_thresh: 0.10
   match_thresh: 0.70
-  reid_enabled: false
+  reid_enabled: true
 
 
 scheduler:
@@ -103,3 +103,21 @@ diagnostics:
   gpu_warn_pct: 85.0
   cpu_warn_pct: 90.0
   ram_warn_pct: 85.0
+
+roboflow:
+  api_key: ""
+  default_model: "uav-detection/3"
+  enabled: true
+
+openai:
+  api_key: ""
+  model: "gpt-4o-mini"
+  enabled: true
+
+weather:
+  api_key: ""
+  enabled: true
+  update_interval_s: 60
+
+
+

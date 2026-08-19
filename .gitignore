@@ -6,3 +6,16 @@ __pycache__/
 *.egg-info/
 recordings/
 *.db
+*.sqlite
+*.sqlite3
+.env
+*.env
+*.pem
+*.key
+.antigravity/
+runs/
+data/
+datasets/
+models/*.pt
+yolo*.pt
+*.log

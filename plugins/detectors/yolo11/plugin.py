@@ -7,6 +7,7 @@ Triggers AGPL license verification gate in PluginLoader before initialization.
 
 from __future__ import annotations
 
+from typing import Any
 import cv2
 import numpy as np
 import structlog

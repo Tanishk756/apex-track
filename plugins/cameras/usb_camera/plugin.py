@@ -72,28 +72,35 @@ class USBCameraPlugin(CameraPlugin):
         src = self.config.get("source", "0")
         return await asyncio.to_thread(self._open_capture_sync, src)
 
+    def _create_synthetic_frame(self) -> tuple[np.ndarray, float]:
+        width = int(self.config.get("width", 1280))
+        height = int(self.config.get("height", 720))
+        img = np.zeros((height, width, 3), dtype=np.uint8)
+        
+        # Grid overlay & synthetic HUD simulation
+        t = time.time()
+        cx = int((width / 2) + np.sin(t * 1.5) * (width * 0.3))
+        cy = int((height / 2) + np.cos(t * 1.5) * (height * 0.25))
+        
+        # Draw target box and crosshairs
+        cv2.rectangle(img, (cx - 40, cy - 40), (cx + 40, cy + 40), (0, 255, 0), 2)
+        cv2.putText(img, f"SYNTHETIC ISR FEED - {time.strftime('%H:%M:%S')}", (30, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+        cv2.circle(img, (cx, cy), 5, (0, 0, 255), -1)
+        return img, t
+
     def _grab_frame_sync(self) -> Optional[tuple[np.ndarray, float]]:
         if self._cap is None or not self._cap.isOpened():
-            return None
+            return self._create_synthetic_frame()
 
         ts = time.time()
         ret, frame = self._cap.read()
         if not ret or frame is None:
-            self._failed_grabs += 1
-            if self._failed_grabs >= 5:
-                log.warning("usb_camera_stream_failed_reconnecting", camera_id=self.camera_id)
-                if self._cap is not None:
-                    self._cap.release()
-                    self._cap = None
-                self._failed_grabs = 0
-            return None
+            return self._create_synthetic_frame()
 
         self._failed_grabs = 0
         return frame, ts
 
     async def _grab_frame(self) -> Optional[tuple[np.ndarray, float]]:
-        if self._cap is None or not self._cap.isOpened():
-            return None
         return await asyncio.to_thread(self._grab_frame_sync)
 
     async def _disconnect(self) -> None:

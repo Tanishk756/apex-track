@@ -74,6 +74,7 @@ def run_benchmark(tracker_name: str, num_frames: int = 200, num_targets: int = 1
     print(f"Avg Latency:  {avg_lat:.3f} ms")
     print(f"p50 Latency:  {p50:.3f} ms")
     print(f"p95 Latency:  {p95:.3f} ms")
+    print(f"Tracks Count: {len(active_tracks)}")
     print("==========================")
 
 

@@ -33,7 +33,7 @@ class AdaptiveScheduler:
 
     def __init__(
         self,
-        base_detection_interval: int = 3,  # Run detection every N frames
+        base_detection_interval: int = 1,  # Run detection on every frame for zero latency
         motion_threshold: float = 12.0,      # Optical flow velocity threshold to force detection
         max_gpu_load_percent: float = 85.0,  # GPU load budget
     ) -> None:

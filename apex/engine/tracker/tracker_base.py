@@ -31,12 +31,12 @@ class TrackerBase(PluginBase, abc.ABC):
 
     def __init__(self) -> None:
         super().__init__()
-        self.track_high_thresh: float = 0.5
-        self.track_low_thresh: float = 0.1
-        self.new_track_thresh: float = 0.6
+        self.track_high_thresh: float = 0.25
+        self.track_low_thresh: float = 0.10
+        self.new_track_thresh: float = 0.25
         self.match_thresh: float = 0.8
         self.max_time_lost: int = 30  # Frames to coast before deleting
-        self.min_hits: int = 3        # Frames required to confirm track
+        self.min_hits: int = 1        # Initiate track immediately on first frame hit
         self._next_track_id: int = 1
 
     async def load(self, config: dict, hw_profile: HWProfile) -> None:

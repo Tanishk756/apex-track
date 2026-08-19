@@ -104,8 +104,11 @@ class Track:
     embedding: Optional[bytes] = None
     """Latest Re-ID feature embedding — used for reacquisition after LOST."""
 
+    segmentation_mask: Optional[tuple[tuple[float, float], ...]] = None
+    """Polygon segmentation mask vertices normalized in [0, 1] relative to bounding box."""
+
     def is_active(self) -> bool:
-        return self.state in (TrackState.CONFIRMED, TrackState.COASTING)
+        return self.state in (TrackState.TENTATIVE, TrackState.CONFIRMED, TrackState.COASTING)
 
     def __repr__(self) -> str:
         return (

@@ -74,7 +74,8 @@ class MasterPipeline:
 
         detections = []
         if should_detect:
-            detections = self.detector.detect(frame)
+            import asyncio
+            detections = await asyncio.to_thread(self.detector.detect, frame)
 
         # 3. Target Tracking Update
         tracks = self.tracker.update(detections, frame, is_maneuvering=False)
