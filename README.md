@@ -152,8 +152,17 @@ python3 -m pytest tests/unit/ -v
 
 ---
 
+## 👤 Author & Owner
+
+**Tanishk Singhal**  
+- **GitHub**: [@Tanishk756](https://github.com/Tanishk756)
+- **Email**: [tanishksinghal6285@gmail.com](mailto:tanishksinghal6285@gmail.com)
+
+---
+
 ## 📄 License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.  
+Copyright (c) 2026 **Tanishk Singhal**. All rights reserved.
 
 ---
 *APEX-Track v15.0 Master Enterprise Edition — Autonomous Tactical Perception & Tracking.*

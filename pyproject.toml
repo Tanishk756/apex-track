@@ -4,17 +4,18 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "apex-track"
-version = "0.1.0"
-description = "Industrial-grade AI Detection & Tracking Platform"
+version = "15.0.0"
+description = "Defense-Grade AI C4ISR Perception & Persistent Target Tracking Platform"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "Apache-2.0" }
-authors = [{ name = "APEX-Track Contributors" }]
-keywords = ["tracking", "detection", "uav", "ros2", "tensorrt", "onnx"]
+license = { text = "MIT" }
+authors = [{ name = "Tanishk Singhal", email = "tanishksinghal6285@gmail.com" }]
+maintainers = [{ name = "Tanishk Singhal", email = "tanishksinghal6285@gmail.com" }]
+keywords = ["tracking", "detection", "uav", "c4isr", "ros2", "tensorrt", "onnx", "bytetrack", "botsort"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: Apache Software License",
+    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
